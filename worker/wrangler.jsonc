@@ -29,8 +29,7 @@
         "FOOTBALL_DATA_CODE": "PL",
         "TEAMS_COUNT": "20",
         "ROUNDS_PER_SEASON": "38",
-        "SCORE_TTL_SUB_SECONDS": "20",
-        "SCORE_TTL_FREE_SECONDS": "5400",
+        "SCORE_TTL_SECONDS": "90",
         "TIMEZONE": "Europe/London",
         "MAINTENANCE_WINDOW_UTC": "04:00"
       },

@@ -43,10 +43,14 @@ struct SummaryShareView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
                 if let rendered {
                     ToolbarItem(placement: .primaryAction) {
-                        ShareLink(
-                            item: Image(uiImage: rendered),
-                            preview: SharePreview(title, image: Image(uiImage: rendered))
-                        ) {
+                        // Free users watch a rewarded ad before the share sheet;
+                        // subscribers share instantly (see AdGate). Presented
+                        // programmatically so the ad can run first.
+                        Button {
+                            AdGate.run {
+                                ImageSharePresenter.present(image: rendered, title: title)
+                            }
+                        } label: {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
                     }

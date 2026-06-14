@@ -44,7 +44,11 @@ struct ResultsEntryView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Button("Pull results from server") { pullFromServer() }
+                        // Free users watch a rewarded ad to pull fresh results;
+                        // subscribers pull instantly (see AdGate).
+                        Button("Pull results from server") {
+                            AdGate.run { Task { await pullFromServer() } }
+                        }
                         Button("Declare winner(s)…") { showDeclare = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -102,7 +106,10 @@ struct ResultsEntryView: View {
         isLoading = false
     }
 
-    private func pullFromServer() {
+    private func pullFromServer() async {
+        // Re-fetch so the rewarded ad buys genuinely fresh results, not whatever
+        // was loaded when the sheet opened. Falls back to current data on failure.
+        if let fresh = try? await LeagueData.load() { data = fresh }
         for fixture in roundFixtures {
             if fixture.status == "POSTPONED" {
                 outcomes[fixture.id] = .postponed

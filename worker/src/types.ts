@@ -62,8 +62,6 @@ export interface ScoreEntry {
   winner: MatchWinner;
 }
 
-export type Tier = "sub" | "free";
-
 // League configuration, resolved from per-env wrangler vars.
 // The engine is league-agnostic: every league-specific value comes from here.
 export interface LeagueConfig {
@@ -72,7 +70,11 @@ export interface LeagueConfig {
   footballDataCode: string;
   teamsCount: number;
   roundsPerSeason: number;
-  scoreTtlMs: Record<Tier, number>;
+  // Single shared score-cache TTL. Free vs subscriber is no longer a freshness
+  // tier — everyone gets the same data; the app gates the *refresh action*
+  // behind a rewarded ad for free users (see iOS AdGate). One cache = ~half the
+  // upstream polling of the old two-tier split.
+  scoreTtlMs: number;
   timezone: string;
   maintenanceWindowUTC: string;
 }
@@ -91,10 +93,7 @@ export function getLeagueConfig(env: Env): LeagueConfig {
     footballDataCode: env.FOOTBALL_DATA_CODE,
     teamsCount: num(env.TEAMS_COUNT, "TEAMS_COUNT"),
     roundsPerSeason: num(env.ROUNDS_PER_SEASON, "ROUNDS_PER_SEASON"),
-    scoreTtlMs: {
-      sub: num(env.SCORE_TTL_SUB_SECONDS, "SCORE_TTL_SUB_SECONDS") * 1000,
-      free: num(env.SCORE_TTL_FREE_SECONDS, "SCORE_TTL_FREE_SECONDS") * 1000,
-    },
+    scoreTtlMs: num(env.SCORE_TTL_SECONDS, "SCORE_TTL_SECONDS") * 1000,
     timezone: env.TIMEZONE,
     maintenanceWindowUTC: env.MAINTENANCE_WINDOW_UTC,
   };

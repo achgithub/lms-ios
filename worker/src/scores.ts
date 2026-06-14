@@ -1,21 +1,22 @@
 // KV score cache — versioned counter-pair pattern (spec §4.2 / §10.2).
 //
-// Each tier keeps a call/refresh counter pair plus a timestamp:
-//   scores:<tier>          fixture scores JSON
-//   scores:<tier>:call     integer, bumped by the first caller that sees staleness
-//   scores:<tier>:refresh  integer, set equal to call once the upstream write lands
-//   scores:<tier>:ts       ISO8601, when call was last bumped (the time gate)
+// A single shared cache keeps a call/refresh counter pair plus a timestamp:
+//   scores          fixture scores JSON
+//   scores:call     integer, bumped by the first caller that sees staleness
+//   scores:refresh  integer, set equal to call once the upstream write lands
+//   scores:ts       ISO8601, when call was last bumped (the time gate)
 //
 // State machine:
 //   call == refresh, fresh  -> serve cache, no upstream call
 //   call == refresh, stale  -> bump call, serve stale now, refresh in background
 //   call >  refresh         -> refresh in flight; serve stale now, poll in background
 //
-// The two tiers are fully independent. Stale data is ALWAYS served immediately;
-// the user never waits on upstream. Result: ~1 upstream call per TTL window
-// regardless of concurrent users.
+// There is ONE cache for everyone (no free/sub freshness tiers — the app gates
+// the refresh action behind a rewarded ad for free users instead). Stale data is
+// ALWAYS served immediately; the user never waits on upstream. Result: ~1
+// upstream call per TTL window regardless of concurrent users.
 
-import type { ScoreEntry, Tier } from "./types";
+import type { ScoreEntry } from "./types";
 
 // Minimal structural type — we only need waitUntil, so we don't couple to the
 // exact ExecutionContext shape (which differs between Hono and the workerd
@@ -26,17 +27,15 @@ interface BackgroundCtx {
 
 const MAX_RETRIES = 5; // 5 × 1s = 5s max background poll
 
+const KEYS = {
+  data: "scores",
+  call: "scores:call",
+  refresh: "scores:refresh",
+  ts: "scores:ts",
+} as const;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function keys(tier: Tier) {
-  return {
-    data: `scores:${tier}`,
-    call: `scores:${tier}:call`,
-    refresh: `scores:${tier}:refresh`,
-    ts: `scores:${tier}:ts`,
-  };
 }
 
 function parseInt0(v: string | null): number {
@@ -45,23 +44,20 @@ function parseInt0(v: string | null): number {
 }
 
 /**
- * Resolve scores for a tier. Returns cached data immediately and uses
- * `waitUntil` for any background refresh/poll so the response never blocks.
+ * Resolve scores. Returns cached data immediately and uses `waitUntil` for any
+ * background refresh/poll so the response never blocks.
  */
 export async function getScores(
   kv: KVNamespace,
-  tier: Tier,
   ttlMs: number,
   fetchUpstream: () => Promise<ScoreEntry[]>,
   ctx: BackgroundCtx,
 ): Promise<ScoreEntry[]> {
-  const k = keys(tier);
-
   const [cached, callStr, refreshStr, tsStr] = await Promise.all([
-    kv.get(k.data),
-    kv.get(k.call),
-    kv.get(k.refresh),
-    kv.get(k.ts),
+    kv.get(KEYS.data),
+    kv.get(KEYS.call),
+    kv.get(KEYS.refresh),
+    kv.get(KEYS.ts),
   ]);
 
   const call = parseInt0(callStr);
@@ -73,12 +69,12 @@ export async function getScores(
     // This Worker claims the refresh — bump call, then refresh in background.
     // (Residual race per spec §10.2: two Workers can both claim; worst case is
     // one duplicate upstream call. Correctness is unaffected.)
-    await kv.put(k.call, String(call + 1));
-    await kv.put(k.ts, new Date().toISOString());
-    ctx.waitUntil(doRefresh(kv, tier, call + 1, fetchUpstream));
+    await kv.put(KEYS.call, String(call + 1));
+    await kv.put(KEYS.ts, new Date().toISOString());
+    ctx.waitUntil(doRefresh(kv, call + 1, fetchUpstream));
   } else if (call > refresh) {
     // Refresh already in flight elsewhere — background housekeeping only.
-    ctx.waitUntil(pollUntilFresh(kv, tier, call));
+    ctx.waitUntil(pollUntilFresh(kv, call));
   }
   // call === refresh && !stale -> cache fresh, serve directly.
 
@@ -87,26 +83,23 @@ export async function getScores(
 
 async function doRefresh(
   kv: KVNamespace,
-  tier: Tier,
   expectedCall: number,
   fetchUpstream: () => Promise<ScoreEntry[]>,
 ): Promise<void> {
-  const k = keys(tier);
   try {
     const data = await fetchUpstream();
-    await kv.put(k.data, JSON.stringify(data));
-    await kv.put(k.refresh, String(expectedCall));
+    await kv.put(KEYS.data, JSON.stringify(data));
+    await kv.put(KEYS.refresh, String(expectedCall));
   } catch (err) {
     // Leave refresh < call so a later request retries. Stale data already served.
-    console.error(JSON.stringify({ msg: "score refresh failed", tier, error: String(err) }));
+    console.error(JSON.stringify({ msg: "score refresh failed", error: String(err) }));
   }
 }
 
-async function pollUntilFresh(kv: KVNamespace, tier: Tier, expectedCall: number): Promise<void> {
-  const k = keys(tier);
+async function pollUntilFresh(kv: KVNamespace, expectedCall: number): Promise<void> {
   for (let i = 0; i < MAX_RETRIES; i++) {
     await sleep(1000);
-    const refresh = parseInt0(await kv.get(k.refresh));
+    const refresh = parseInt0(await kv.get(KEYS.refresh));
     if (refresh >= expectedCall) return; // fresh — next user request gets it
   }
   // Timed out — stale was already served, next request will retry.
@@ -117,10 +110,9 @@ async function pollUntilFresh(kv: KVNamespace, tier: Tier, expectedCall: number)
  * Called inside the maintenance window so the first user of the day gets fresh
  * data with zero upstream calls and no accumulated integer drift (§10.3).
  */
-export async function warmCache(kv: KVNamespace, tier: Tier, data: ScoreEntry[]): Promise<void> {
-  const k = keys(tier);
-  await kv.put(k.data, JSON.stringify(data));
-  await kv.put(k.call, "0");
-  await kv.put(k.refresh, "0");
-  await kv.put(k.ts, new Date().toISOString());
+export async function warmCache(kv: KVNamespace, data: ScoreEntry[]): Promise<void> {
+  await kv.put(KEYS.data, JSON.stringify(data));
+  await kv.put(KEYS.call, "0");
+  await kv.put(KEYS.refresh, "0");
+  await kv.put(KEYS.ts, new Date().toISOString());
 }

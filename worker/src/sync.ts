@@ -28,11 +28,10 @@ export async function syncStandings(db: D1Database, provider: Provider): Promise
   return standings.length;
 }
 
-// Cache-warm: fetch once, write both tiers, reset counter pairs to (0,0).
+// Cache-warm: fetch once, write the shared cache, reset the counter pair to (0,0).
 export async function warmScores(kv: KVNamespace, provider: Provider): Promise<number> {
   const scores = await provider.fetchScores();
-  await warmCache(kv, "sub", scores);
-  await warmCache(kv, "free", scores);
+  await warmCache(kv, scores);
   return scores.length;
 }
 

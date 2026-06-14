@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Fixture scores from the Worker (free/stale tier for now). Rewarded-ad gating
-/// and the subscriber near-live tier arrive in later phases.
+/// Fixture scores from the Worker (one shared cache for all tiers). The
+/// monetization gate is on explicit refresh *actions* in the game flow
+/// (see AdGate), not on browsing this list.
 struct ScoresView: View {
     @State private var scores: [ScoreDTO] = []
     @State private var teamsById: [Int: TeamDTO] = [:]
@@ -37,7 +38,7 @@ struct ScoresView: View {
         isLoading = true
         errorMessage = nil
         do {
-            async let scoresReq = APIClient.shared.scores(tier: "free")
+            async let scoresReq = APIClient.shared.scores()
             async let teamsReq = APIClient.shared.teams()
             let (scores, teams) = try await (scoresReq, teamsReq)
             self.scores = scores.sorted { $0.id < $1.id }

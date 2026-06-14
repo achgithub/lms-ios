@@ -21,7 +21,9 @@ actor APIClient {
 
     func teams() async throws -> [TeamDTO] { try await get("/teams") }
     func standings() async throws -> [StandingDTO] { try await get("/standings") }
-    func scores(tier: String = "free") async throws -> [ScoreDTO] { try await get("/scores?tier=\(tier)") }
+    // One shared cache server-side — no freshness tier. Free vs subscriber is an
+    // app-side rewarded-ad gate on the refresh action (see AdGate), not the data.
+    func scores() async throws -> [ScoreDTO] { try await get("/scores") }
 
     func fixtures(dateFrom: String? = nil, dateTo: String? = nil, matchday: Int? = nil) async throws -> [FixtureDTO] {
         var query: [String] = []

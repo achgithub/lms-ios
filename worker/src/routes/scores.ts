@@ -3,11 +3,12 @@ import { getFixtures } from "../db";
 import { demoScores, getDemoClock } from "../demo";
 import { FootballDataProvider } from "../football";
 import { getScores } from "../scores";
-import { getLeagueConfig, type Tier } from "../types";
+import { getLeagueConfig } from "../types";
 
-// GET /scores?tier=free|sub
-// Trust-on-client (spec §10.2): the only difference is freshness, not gated
-// content. Defaults to the free (stale) tier when tier is missing/unknown.
+// GET /scores
+// One shared cache for everyone — free vs subscriber is not a freshness tier;
+// the app gates the refresh action behind a rewarded ad for free users. Stale
+// data is served immediately and refreshed in the background (spec §10.2).
 // When a demo clock is set, returns the current matchday's (synthetic) scores.
 export const scores = new Hono<{ Bindings: Env }>();
 
@@ -17,7 +18,6 @@ scores.get("/", async (c) => {
     return c.json(demoScores(await getFixtures(c.env.DB), clock));
   }
 
-  const tier: Tier = c.req.query("tier") === "sub" ? "sub" : "free";
   const cfg = getLeagueConfig(c.env);
   const provider = new FootballDataProvider(
     c.env.FOOTBALL_DATA_TOKEN,
@@ -26,8 +26,7 @@ scores.get("/", async (c) => {
   );
   const data = await getScores(
     c.env.SCORES,
-    tier,
-    cfg.scoreTtlMs[tier],
+    cfg.scoreTtlMs,
     () => provider.fetchScores(),
     c.executionCtx,
   );
