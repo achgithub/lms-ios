@@ -11,7 +11,7 @@ struct RootTabView: View {
     @AppStorage(ManagerSettings.nameKey) private var managerName = ""
     @State private var entitlements = Entitlements.shared
     @Environment(EnabledLeagues.self) private var enabled
-    @Environment(\.scenePhase) private var scenePhase
+    // @Environment(\.scenePhase) private var scenePhase  // interstitial dropped 2026-06-15
 
     /// True when more leagues are enabled than the (possibly downgraded)
     /// subscription allows — the app is blocked until the user reduces them.
@@ -51,16 +51,19 @@ struct RootTabView: View {
         .task {
             PurchaseService.shared.configure()
             AdsBootstrap.start()
-            InterstitialAdManager.shared.preload()
+            // Interstitial dropped (low value for this workflow app, 2026-06-15).
+            // Code kept in InterstitialAdManager; re-enable by uncommenting here
+            // and the scenePhase trigger below.
+            // InterstitialAdManager.shared.preload()
             RewardedAdManager.shared.preload()
             await entitlements.refresh()
             // Drop any leagues that no longer exist. Going over the subscription
             // allowance is handled by the blocking downgrade gate, not silently.
             EnabledLeagues.shared.pruneInvalid()
         }
-        .onChange(of: scenePhase) { _, phase in
-            // Timed interstitial on returning to the foreground.
-            if phase == .active { InterstitialAdManager.shared.showIfDue() }
-        }
+        // Interstitial dropped (2026-06-15) — foreground trigger disabled.
+        // .onChange(of: scenePhase) { _, phase in
+        //     if phase == .active { InterstitialAdManager.shared.showIfDue() }
+        // }
     }
 }
