@@ -18,13 +18,13 @@ struct OpenRoundView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    // Filters
+    // Filters — date is the primary driver (matchday numbers don't line up across
+    // leagues), so the date window is on by default.
     @State private var leagueFilter: String?         // nil = all the game's leagues
-    @State private var matchdayFilter: Int?          // nil = all matchdays
     @State private var unplayedOnly = true           // default: upcoming fixtures
-    @State private var dateFilterOn = false
-    @State private var dateFrom = Date()
-    @State private var dateTo = Date().addingTimeInterval(7 * 24 * 3600)
+    @State private var dateFilterOn = true
+    @State private var dateFrom = Date().addingTimeInterval(-1 * 24 * 3600)
+    @State private var dateTo = Date().addingTimeInterval(14 * 24 * 3600)
 
     @State private var selectedFixtureIds: Set<Int> = []
     @State private var deadline = Date()
@@ -35,10 +35,6 @@ struct OpenRoundView: View {
 
     private var allFixtures: [FixtureDTO] { data?.fixtures ?? [] }
 
-    private var matchdays: [Int] {
-        Array(Set(allFixtures.compactMap(\.matchday))).sorted()
-    }
-
     /// The league a fixture belongs to (via its home team's league).
     private func leagueId(of f: FixtureDTO) -> String? { data?.leagueIdByTeam[f.homeTeamId] }
 
@@ -46,7 +42,6 @@ struct OpenRoundView: View {
     private var visibleFixtures: [FixtureDTO] {
         allFixtures.filter { f in
             (leagueFilter == nil || leagueId(of: f) == leagueFilter)
-                && (matchdayFilter == nil || f.matchday == matchdayFilter)
                 && (!unplayedOnly || Self.isUnplayed(f))
                 && (!dateFilterOn || dateInRange(f))
         }
@@ -79,17 +74,13 @@ struct OpenRoundView: View {
     private var form: some View {
         Form {
             Section("Filters") {
+                // Only show the league control when there's an actual choice — a
+                // single-league game uses that league silently (matches New Game).
                 if isBlended {
                     Picker("League", selection: $leagueFilter) {
                         Text("All leagues").tag(String?.none)
                         ForEach(gameLeagues) { Text($0.name).tag(String?.some($0.id)) }
                     }
-                } else {
-                    LabeledContent("League", value: gameLeagues.first?.name ?? "—")
-                }
-                Picker("Matchday", selection: $matchdayFilter) {
-                    Text("All").tag(Int?.none)
-                    ForEach(matchdays, id: \.self) { Text("Matchday \($0)").tag(Int?.some($0)) }
                 }
                 Toggle("Unplayed only", isOn: $unplayedOnly)
                 Toggle("Filter by date", isOn: $dateFilterOn.animation())
@@ -136,8 +127,12 @@ struct OpenRoundView: View {
                 }
             }
 
-            Section("Deadline") {
+            Section {
                 DatePicker("Picks due by", selection: $deadline)
+            } header: {
+                Text("Deadline")
+            } footer: {
+                Text("Defaults to 24 hours before the first selected kick-off. A guide for the manager — picks aren't locked automatically.")
             }
         }
     }
@@ -162,12 +157,15 @@ struct OpenRoundView: View {
         syncDeadlineToSelection()
     }
 
-    /// Default the deadline to the earliest selected kickoff.
+    /// Default the deadline to 24 hours before the earliest selected kick-off
+    /// (info only — the manager can change it; nothing is enforced).
     private func syncDeadlineToSelection() {
         let kickoffs = allFixtures
             .filter { selectedFixtureIds.contains($0.id) }
             .compactMap { FixtureFormat.kickoffDate($0.kickoff) }
-        if let earliest = kickoffs.min() { deadline = earliest }
+        if let earliest = kickoffs.min() {
+            deadline = earliest.addingTimeInterval(-24 * 3600)
+        }
     }
 
     // MARK: Filtering helpers
@@ -190,18 +188,10 @@ struct OpenRoundView: View {
         do {
             let fresh = try await LeagueData.load(for: gameLeagues)
             data = fresh
-            // Single-league: default to the first matchday that still has unplayed
-            // fixtures (the current/next one) and preselect it. Blended games mix
-            // leagues' matchday numbers, so leave the pool open for the manager.
-            if !isBlended {
-                let firstUnplayedMatchday = fresh.fixtures
-                    .filter { Self.isUnplayed($0) }
-                    .compactMap(\.matchday)
-                    .min()
-                matchdayFilter = firstUnplayedMatchday ?? matchdays.first
-                selectedFixtureIds = Set(visibleFixtures.map(\.id))
-                syncDeadlineToSelection()
-            }
+            // Preselect everything in the default date window (yesterday → +14 days
+            // of unplayed fixtures) — a sensible starting round the manager can trim.
+            selectedFixtureIds = Set(visibleFixtures.map(\.id))
+            syncDeadlineToSelection()
         } catch {
             errorMessage = error.localizedDescription
         }

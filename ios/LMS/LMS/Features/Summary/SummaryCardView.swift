@@ -75,6 +75,27 @@ struct SummaryCardView: View {
         switch data.type {
         case .picks:   picksContent
         case .results: resultsContent
+        case .outcome: outcomeContent
+        }
+    }
+
+    @ViewBuilder
+    private var outcomeContent: some View {
+        if let ending = data.outcome {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(ending.headline)
+                    .font(.system(size: 26, weight: .heavy, design: .rounded))
+                    .foregroundStyle(accent)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(ending.listHeading)  (\(data.outcomePlayers.count))")
+                        .font(.system(size: 16, weight: .bold)).foregroundStyle(textPrimary)
+                    if data.outcomePlayers.isEmpty {
+                        Text("—").font(.system(size: 15)).foregroundStyle(textSecondary)
+                    } else {
+                        namesLine(data.outcomePlayers, flag: false)
+                    }
+                }
+            }
         }
     }
 
@@ -220,6 +241,8 @@ private extension SummaryData {
             eliminated: ["Chris", "Mo"],
             managerSurvived: true,
             managerEliminated: false,
+            outcome: { if case .outcome(let e) = type { return e } else { return nil } }(),
+            outcomePlayers: mode == .anonymous ? ["Player 1", "Player 4"] : ["Andy", "Nina"],
             activeCount: 8,
             eliminatedCount: 2
         )
@@ -240,4 +263,12 @@ private extension SummaryData {
 
 #Preview("Results · Anonymous") {
     SummaryCardView(data: .sample(type: .results, mode: .anonymous))
+}
+
+#Preview("Outcome · Split") {
+    SummaryCardView(data: .sample(type: .outcome(.split), mode: .named))
+}
+
+#Preview("Outcome · Roll the week · Anonymous") {
+    SummaryCardView(data: .sample(type: .outcome(.rollWeek), mode: .anonymous))
 }

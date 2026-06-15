@@ -5,7 +5,8 @@ enum FixtureFormat {
     static func kickoffDate(_ string: String) -> Date? { iso.date(from: string) }
 }
 
-/// Compact fixture row: home tile/TLA · v · away TLA/tile · date.
+/// Compact fixture row: home tile/TLA · v · away TLA/tile, with the kick-off
+/// date + time and matchday stacked on the trailing edge (info only).
 struct FixtureLabel: View {
     let fixture: FixtureDTO
     let teamsById: [Int: TeamDTO]
@@ -20,8 +21,16 @@ struct FixtureLabel: View {
             Text(tla(fixture.awayTeamId)).font(.caption.weight(.semibold)).frame(width: 36, alignment: .leading)
             TeamTile(tla: teamsById[fixture.awayTeamId]?.tla, size: .small)
             Spacer()
-            if let date = FixtureFormat.kickoffDate(fixture.kickoff) {
-                Text(date, format: .dateTime.day().month()).font(.caption2).foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 1) {
+                if let date = FixtureFormat.kickoffDate(fixture.kickoff) {
+                    Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                        .font(.caption2).foregroundStyle(.secondary)
+                    Text(date, format: .dateTime.hour().minute())
+                        .font(.caption2.weight(.semibold))
+                }
+                if let matchday = fixture.matchday {
+                    Text("MD \(matchday)").font(.caption2).foregroundStyle(.tertiary)
+                }
             }
         }
     }

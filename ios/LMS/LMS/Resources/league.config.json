@@ -7,7 +7,5 @@
   "allowRepeatDefault": false,
   "roundsPerSeason": 38,
   "scoreTtlSubSeconds": 20,
-  "tieRuleDefault": "rollover_round",
-  "tieRuleRecommended": null,
   "season": "2025/26"
 }

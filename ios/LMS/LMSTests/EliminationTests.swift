@@ -23,11 +23,4 @@ struct EliminationTests {
         #expect(!GameEngine.isAllEliminated(activeBefore: 3, eliminatedThisRound: 2))
         #expect(!GameEngine.isAllEliminated(activeBefore: 0, eliminatedThisRound: 0))
     }
-
-    @Test func weakPickIsBottomHalfOfTable() {
-        #expect(GameEngine.isWeakPick(position: 15, teamsCount: 20))
-        #expect(!GameEngine.isWeakPick(position: 5, teamsCount: 20))
-        #expect(!GameEngine.isWeakPick(position: 10, teamsCount: 20)) // exactly mid is not weak
-        #expect(!GameEngine.isWeakPick(position: nil, teamsCount: 20))
-    }
 }

@@ -29,10 +29,12 @@ enum GameLogicService {
 
     // MARK: - Used teams & eligibility
 
-    /// Teams a player has used in previous *closed* rounds.
+    /// Teams a player has used in previous *closed* rounds, counting only rounds
+    /// after their team-pool reset boundary (a tie resolution can reopen the pool).
     static func usedTeamIds(for player: Player) -> Set<Int> {
         var used: Set<Int> = []
         for pick in player.picks where pick.round?.status == .closed {
+            if let number = pick.round?.roundNumber, number <= player.teamPoolResetAfterRound { continue }
             used.insert(pick.teamId)
         }
         return used
@@ -181,8 +183,6 @@ enum GameLogicService {
     static func closeRound(
         _ round: Round,
         game: Game,
-        standingsByTeam: [Int: StandingDTO],
-        teamsCountByTeam: [Int: Int],
         context: ModelContext
     ) -> RoundCloseResult {
         let activeBefore = game.players.filter { $0.status == .active }
@@ -197,16 +197,10 @@ enum GameLogicService {
         var eliminated: [Player] = []
         var survivors: [Player] = []
         for player in activeBefore {
-            // Track weak picks for every active player's pick this round.
-            if let pick = pick(for: player, in: round),
-               GameEngine.isWeakPick(position: standingsByTeam[pick.teamId]?.position, teamsCount: teamsCountByTeam[pick.teamId] ?? 0) {
-                player.weakPicks += 1
-            }
             if eliminatedIds.contains(player.id) {
                 player.status = .eliminated
                 eliminated.append(player)
             } else {
-                player.roundsSurvived += 1
                 survivors.append(player)
             }
         }
@@ -224,52 +218,44 @@ enum GameLogicService {
         )
     }
 
-    /// Tied players (active immediately before the all-eliminated close) as engine input.
-    static func tiePlayers(from survivorsAndEliminated: [Player], round: Round) -> [TiePlayer] {
-        survivorsAndEliminated.map { player in
-            TiePlayer(
-                id: player.id,
-                roundsSurvived: player.roundsSurvived,
-                weakPicks: player.weakPicks,
-                thisRoundTeamId: pick(for: player, in: round)?.teamId
-            )
-        }
-    }
-
     // MARK: - Apply a resolution outcome
 
-    /// Apply a `TieOutcome` (automatic rule or manual override) to the game.
-    static func apply(_ outcome: TieOutcome, game: Game) {
+    /// Apply a `TieOutcome` (manager's in-the-moment choice) to the game, and
+    /// record it so its outcome card stays shareable. Returns the follow-up round
+    /// type to open next, or nil when the game is now complete.
+    @discardableResult
+    static func apply(_ outcome: TieOutcome, game: Game) -> RoundType? {
         let playersById = Dictionary(game.players.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let currentRoundNumber = game.currentRound?.roundNumber ?? 0
 
-        func declare(winners ids: [UUID]) {
+        switch outcome {
+        case .winners(let ids):
             let winners = Set(ids)
             for player in game.players {
                 player.status = winners.contains(player.id) ? .winner : .eliminated
             }
             game.status = .complete
-        }
+            game.lastOutcome = winners.count > 1 ? .split : .winner
+            return nil
 
-        switch outcome {
-        case .jointWinners(let ids), .manualWinners(let ids):
-            declare(winners: ids)
-        case .singleWinner(let id, _):
-            declare(winners: [id])
-        case .rollover(let reinstated, _):
-            for id in reinstated { playersById[id]?.status = .active }
-        case .suddenDeathPlayoff(let ids):
-            for id in ids { playersById[id]?.status = .active }
-        case .fullReset(let ids):
-            // Soft reset (§13c rule 3): reinstate the tied players and clear their
-            // stats. We deliberately do NOT wipe used-team history or rewind the
-            // round counter — a true "restart from Round 1" is just a new game,
-            // which is the expected manager action if it ever reaches this point.
+        case .rollWeek(let tiedIds, let resetPool):
+            for id in tiedIds {
+                guard let player = playersById[id] else { continue }
+                player.status = .active
+                // Pool exhausted for the whole group → reopen it so they can pick.
+                if resetPool { player.teamPoolResetAfterRound = currentRoundNumber }
+            }
+            game.lastOutcome = .rollWeek
+            return .rollover
+
+        case .everyoneBackIn(let ids):
             for id in ids {
                 guard let player = playersById[id] else { continue }
                 player.status = .active
-                player.roundsSurvived = 0
-                player.weakPicks = 0
+                player.teamPoolResetAfterRound = currentRoundNumber
             }
+            game.lastOutcome = .everyoneBackIn
+            return .rollover
         }
     }
 }

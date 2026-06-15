@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Create-game form (spec §6.1). Anonymity and tie rule are set once here and
-/// can't change mid-season.
+/// Create-game form (spec §6.1). Anonymity is set once here and can't change
+/// mid-season. Tie / all-eliminated outcomes are chosen in the moment when they
+/// actually arise (see `TieResolutionView`), not pre-committed at creation.
 struct NewGameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
@@ -11,9 +12,7 @@ struct NewGameView: View {
 
     @State private var name = ""
     @State private var season = LeagueConfig.shared.season
-    @State private var allowRepeats = LeagueConfig.shared.allowRepeatDefault
-    @State private var tieRule: TieRule = LeagueConfig.shared.defaultTieRule
-    @State private var anonymity: AnonymityMode = .named
+    @State private var anonymity: AnonymityMode = .anonymous
     @State private var selectedLeagueIds: Set<String> = []
     @State private var managerPlaying = true   // manager opts in/out per game
 
@@ -50,17 +49,6 @@ struct NewGameView: View {
                     } footer: {
                         Text("Pick one league, or blend several — players can then pick teams from any of them.")
                     }
-                }
-
-                Section("Rules") {
-                    Toggle("Allow team repeats", isOn: $allowRepeats)
-
-                    Picker("Tie / all-eliminated", selection: $tieRule) {
-                        ForEach(TieRule.allCases) { Text($0.label).tag($0) }
-                    }
-                    Text(tieRule.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 if !managerTrimmed.isEmpty {
@@ -121,8 +109,7 @@ struct NewGameView: View {
         let game = Game(
             name: trimmedName,
             season: season,
-            allowRepeats: allowRepeats,
-            tieRule: tieRule,
+            allowRepeats: LeagueConfig.shared.allowRepeatDefault,
             anonymityMode: anonymity,
             leagueIds: Array(selectedLeagueIds)
         )
@@ -131,7 +118,8 @@ struct NewGameView: View {
         // The manager plays only if they opted in (they may run games they don't
         // play in — no ⚑ then). Can still add/remove themselves later in the game.
         if managerPlaying && !managerTrimmed.isEmpty {
-            let player = Player(name: managerTrimmed, game: game, isManager: true)
+            let player = Player(name: managerTrimmed, game: game, isManager: true,
+                                entryNumber: game.nextEntryNumber)
             context.insert(player)
             game.players.append(player)
         }

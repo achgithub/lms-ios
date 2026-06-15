@@ -12,8 +12,6 @@ nonisolated struct LeagueConfig: Decodable, Sendable {
     let allowRepeatDefault: Bool
     let roundsPerSeason: Int
     let scoreTtlSubSeconds: Int
-    let tieRuleDefault: String
-    let tieRuleRecommended: String?
     let season: String
 
     /// Base URL of the per-league Worker (read-only sports-data API).
@@ -23,8 +21,6 @@ nonisolated struct LeagueConfig: Decodable, Sendable {
         }
         return url
     }
-
-    var defaultTieRule: TieRule { TieRule(rawValue: tieRuleDefault) ?? .rolloverRound }
 
     static let shared: LeagueConfig = load()
 

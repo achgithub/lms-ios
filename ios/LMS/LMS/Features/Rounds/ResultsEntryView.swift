@@ -18,6 +18,7 @@ struct ResultsEntryView: View {
     @State private var errorMessage: String?
     @State private var outcomes: [Int: FixtureOutcome] = [:]
     @State private var tiedPlayers: [Player] = []
+    @State private var poolExhausted = false
     @State private var showTie = false
     @State private var showDeclare = false
 
@@ -65,7 +66,8 @@ struct ResultsEntryView: View {
             }
             .task { await load() }
             .sheet(isPresented: $showTie) {
-                TieResolutionView(game: game, round: round, tiedPlayers: tiedPlayers) { followUp in
+                TieResolutionView(game: game, tiedPlayers: tiedPlayers,
+                                  poolExhausted: poolExhausted) { followUp in
                     pendingAutoOpen = followUp
                     dismiss()
                 }
@@ -133,20 +135,20 @@ struct ResultsEntryView: View {
             }
         }
 
-        let result = GameLogicService.closeRound(
-            round,
-            game: game,
-            standingsByTeam: data.standingsByTeam,
-            teamsCountByTeam: data.teamsCountByTeam,
-            context: context
-        )
+        let result = GameLogicService.closeRound(round, game: game, context: context)
 
         if result.allEliminated {
             tiedPlayers = result.eliminated
+            // Pool is exhausted (roll-the-week must reset it) when every tied
+            // player has used every team in the league(s).
+            poolExhausted = GameEngine.poolExhausted(
+                usedTeamCounts: result.eliminated.map { GameLogicService.usedTeamIds(for: $0).count },
+                totalTeams: data.teamsById.count
+            )
             showTie = true
         } else if result.remainingActive == 1,
                   let winner = game.players.first(where: { $0.status == .active }) {
-            GameLogicService.apply(.singleWinner(winner.id, reason: "last standing"), game: game)
+            GameLogicService.apply(.winners([winner.id]), game: game)
             dismiss()
         } else {
             dismiss()

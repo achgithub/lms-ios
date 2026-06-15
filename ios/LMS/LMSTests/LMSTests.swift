@@ -13,25 +13,37 @@ import Foundation
 struct ModelTests {
 
     @Test func newGameStartsInSetupWithNoPlayers() {
-        let game = Game(name: "Office LMS", season: "2025/26", allowRepeats: false, tieRule: .rolloverRound)
+        let game = Game(name: "Office LMS", season: "2025/26", allowRepeats: false)
         #expect(game.status == .setup)
         #expect(game.players.isEmpty)
         #expect(game.currentRound == nil)
-        #expect(game.tieRule == .rolloverRound)
+        #expect(game.lastOutcome == nil)
     }
 
     @Test func gameStatusWrapperRoundTrips() {
-        let game = Game(name: "G", season: "2025/26", allowRepeats: true, tieRule: .split)
+        let game = Game(name: "G", season: "2025/26", allowRepeats: true)
         game.status = .active
         #expect(game.statusRaw == "active")
         #expect(game.status == .active)
     }
 
-    @Test func newPlayerIsActive() {
+    @Test func lastOutcomeWrapperRoundTrips() {
+        let game = Game(name: "G", season: "2025/26", allowRepeats: true)
+        game.lastOutcome = .rollWeek
+        #expect(game.lastOutcomeRaw == "rollWeek")
+        #expect(game.lastOutcome == .rollWeek)
+    }
+
+    @Test func newPlayerIsActiveWithCleanPool() {
         let player = Player(name: "Dave")
         #expect(player.status == .active)
-        #expect(player.roundsSurvived == 0)
-        #expect(player.weakPicks == 0)
+        #expect(player.teamPoolResetAfterRound == 0)
+    }
+
+    @Test func anonymousDisplayNameUsesEntryNumber() {
+        let player = Player(name: "Dave", entryNumber: 3)
+        #expect(player.displayName(anonymous: false) == "Dave")
+        #expect(player.displayName(anonymous: true) == "Player 3")
     }
 
     @Test func pickResultStartsNil() {
@@ -43,28 +55,6 @@ struct ModelTests {
     }
 }
 
-struct TieRuleTests {
-
-    @Test func allFiveRulesHaveLabelAndDetail() {
-        #expect(TieRule.allCases.count == 5)
-        for rule in TieRule.allCases {
-            #expect(!rule.label.isEmpty)
-            #expect(!rule.detail.isEmpty)
-        }
-    }
-
-    @Test(arguments: [
-        ("split", TieRule.split),
-        ("rollover_round", TieRule.rolloverRound),
-        ("full_reset", TieRule.fullReset),
-        ("sudden_death", TieRule.suddenDeath),
-        ("longevity", TieRule.longevity),
-    ])
-    func rawValuesMatchSpec(raw: String, rule: TieRule) {
-        #expect(TieRule(rawValue: raw) == rule)
-    }
-}
-
 struct LeagueConfigTests {
 
     @Test func bundledConfigLoadsForPremierLeague() {
@@ -72,6 +62,5 @@ struct LeagueConfigTests {
         #expect(config.leagueId == "PL")
         #expect(config.teamsCount == 20)
         #expect(config.workerURL.scheme == "https")
-        #expect(config.defaultTieRule == .rolloverRound)
     }
 }

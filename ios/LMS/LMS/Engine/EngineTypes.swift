@@ -35,25 +35,15 @@ nonisolated struct EliminationResult: Equatable, Sendable {
     let survivingPlayerIds: [UUID]
 }
 
-/// A tied player at the all-eliminated moment, with the stats needed by the
-/// longevity rule and the team they picked in the tie round (for rollover).
-nonisolated struct TiePlayer: Equatable, Sendable {
-    let id: UUID
-    let roundsSurvived: Int
-    let weakPicks: Int
-    let thisRoundTeamId: Int?
-}
-
-/// How a round-close resolves: either the chosen tie rule (spec §13c.2) or a
-/// manager manual override. The adapter applies the outcome to the game.
+/// How a tie / all-eliminated round resolves. Chosen in the moment by the manager
+/// (spec §13c). The adapter applies the outcome to the game.
 nonisolated enum TieOutcome: Equatable, Sendable {
-    case jointWinners([UUID])                                   // Split
-    case rollover(reinstated: [UUID], usedTeamToAdd: [UUID: Int]) // Rollover round
-    case fullReset(reinstatedAll: [UUID])                       // Full reset
-    case suddenDeathPlayoff([UUID])                             // Sudden death
-    case singleWinner(UUID, reason: String)                    // Longevity
-
-    /// Manager override — declare winner(s) and complete the game, regardless of
-    /// the configured tie rule. Available at any round close.
-    case manualWinners([UUID])
+    /// Declare winner(s) and complete the game — a clean last-one-standing finish,
+    /// a split of a multi-way tie, or a manager manual declaration.
+    case winners([UUID])
+    /// Roll the week: only the tied final survivors carry forward and replay.
+    /// `resetPool` reopens their used-team history when they've exhausted it.
+    case rollWeek(tiedIds: [UUID], resetPool: Bool)
+    /// Everyone back in: reinstate every player and reset all used-team history.
+    case everyoneBackIn(allIds: [UUID])
 }

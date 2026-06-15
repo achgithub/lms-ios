@@ -14,7 +14,11 @@ struct SummaryShareView: View {
     @State private var errorMessage: String?
 
     private var title: String {
-        type == .picks ? "Picks · Round \(round.roundNumber)" : "Results · Round \(round.roundNumber)"
+        switch type {
+        case .picks:   return "Picks · Round \(round.roundNumber)"
+        case .results: return "Results · Round \(round.roundNumber)"
+        case .outcome: return "Outcome · Round \(round.roundNumber)"
+        }
     }
 
     var body: some View {

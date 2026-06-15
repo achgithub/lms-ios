@@ -9,9 +9,10 @@ final class Game {
     var season: String
     var statusRaw: String
     var allowRepeats: Bool
-    var rolloverRuleRaw: String
-    var tieRuleRaw: String
     var anonymityModeRaw: String
+    /// The most recent tie / all-eliminated resolution, so its outcome card stays
+    /// shareable from the game screen. nil until a tie has been resolved.
+    var lastOutcomeRaw: String?
     var createdAt: Date
     /// The league(s) this game runs in (chosen at creation from the enabled
     /// leagues). Usually one, but a game can blend several. Rounds draw fixtures
@@ -28,8 +29,6 @@ final class Game {
         name: String,
         season: String,
         allowRepeats: Bool,
-        rolloverRule: RolloverRule = .allSurvive,
-        tieRule: TieRule,
         anonymityMode: AnonymityMode = .named,
         leagueIds: [String] = [Leagues.home.id]
     ) {
@@ -38,8 +37,6 @@ final class Game {
         self.season = season
         self.statusRaw = GameStatus.setup.rawValue
         self.allowRepeats = allowRepeats
-        self.rolloverRuleRaw = rolloverRule.rawValue
-        self.tieRuleRaw = tieRule.rawValue
         self.anonymityModeRaw = anonymityMode.rawValue
         self.createdAt = Date()
         self.leagueIdsRaw = leagueIds.isEmpty ? [Leagues.home.id] : leagueIds
@@ -62,19 +59,18 @@ final class Game {
         get { GameStatus(rawValue: statusRaw) ?? .setup }
         set { statusRaw = newValue.rawValue }
     }
-    var rolloverRule: RolloverRule {
-        get { RolloverRule(rawValue: rolloverRuleRaw) ?? .allSurvive }
-        set { rolloverRuleRaw = newValue.rawValue }
-    }
-    var tieRule: TieRule {
-        get { TieRule(rawValue: tieRuleRaw) ?? .rolloverRound }
-        set { tieRuleRaw = newValue.rawValue }
-    }
     var anonymityMode: AnonymityMode {
         get { AnonymityMode(rawValue: anonymityModeRaw) ?? .named }
         set { anonymityModeRaw = newValue.rawValue }
     }
+    var lastOutcome: OutcomeEnding? {
+        get { lastOutcomeRaw.flatMap(OutcomeEnding.init(rawValue:)) }
+        set { lastOutcomeRaw = newValue?.rawValue }
+    }
 
     var activePlayers: [Player] { players.filter { $0.status == .active } }
     var currentRound: Round? { rounds.max(by: { $0.roundNumber < $1.roundNumber }) }
+
+    /// Next sequential entry number for a player added to this game.
+    var nextEntryNumber: Int { (players.map(\.entryNumber).max() ?? 0) + 1 }
 }

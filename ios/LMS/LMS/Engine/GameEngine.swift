@@ -82,72 +82,13 @@ nonisolated enum GameEngine {
         activeBefore > 0 && eliminatedThisRound >= activeBefore
     }
 
-    /// A pick is "weak" if the team was in the bottom half of the table when
-    /// assigned (§13c.5) — used as the longevity secondary tiebreaker.
-    static func isWeakPick(position: Int?, teamsCount: Int) -> Bool {
-        guard let position, teamsCount > 0 else { return false }
-        return position > teamsCount / 2
-    }
-
     // MARK: - Tie / all-eliminated resolution (§13c)
 
-    /// Resolve the all-eliminated tie for the configured rule.
-    /// `tiedPlayers` are those active immediately before the tie round closed.
-    /// `allPlayerIds` is every player in the game (for full reset).
-    static func resolveTie(
-        rule: TieRule,
-        tiedPlayers: [TiePlayer],
-        allPlayerIds: [UUID]
-    ) -> TieOutcome {
-        let tiedIds = tiedPlayers.map(\.id)
-        switch rule {
-        case .split:
-            return .jointWinners(tiedIds)
-
-        case .rolloverRound:
-            var usedToAdd: [UUID: Int] = [:]
-            for player in tiedPlayers where player.thisRoundTeamId != nil {
-                usedToAdd[player.id] = player.thisRoundTeamId
-            }
-            return .rollover(reinstated: tiedIds, usedTeamToAdd: usedToAdd)
-
-        case .fullReset:
-            return .fullReset(reinstatedAll: allPlayerIds)
-
-        case .suddenDeath:
-            return .suddenDeathPlayoff(tiedIds)
-
-        case .longevity:
-            return resolveLongevity(tiedPlayers)
-        }
-    }
-
-    /// Most rounds survived wins; tiebreak on fewest weak picks; if still tied,
-    /// fall back to a split (§13c.2 rule 5 edge case).
-    private static func resolveLongevity(_ players: [TiePlayer]) -> TieOutcome {
-        guard !players.isEmpty else { return .jointWinners([]) }
-
-        let maxRounds = players.map(\.roundsSurvived).max() ?? 0
-        let topByRounds = players.filter { $0.roundsSurvived == maxRounds }
-        if topByRounds.count == 1 {
-            return .singleWinner(topByRounds[0].id, reason: "longevity")
-        }
-
-        let minWeak = topByRounds.map(\.weakPicks).min() ?? 0
-        let topByWeak = topByRounds.filter { $0.weakPicks == minWeak }
-        if topByWeak.count == 1 {
-            return .singleWinner(topByWeak[0].id, reason: "fewest weak picks")
-        }
-
-        return .jointWinners(topByWeak.map(\.id))
-    }
-
-    // MARK: - Manager override
-
-    /// Manager manually declares the winner(s) and completes the game, regardless
-    /// of the configured tie rule. Available at any round close (one obvious
-    /// survivor, an off-app agreement, a dispute, abandoning the game, etc.).
-    static func declareWinners(_ playerIds: [UUID]) -> TieOutcome {
-        .manualWinners(playerIds)
+    /// Whether the team pool is exhausted for the whole tied group — i.e. every
+    /// tied player has already used every team in the league(s). When true, a
+    /// "roll the week" must reopen their pool so they can keep picking.
+    static func poolExhausted(usedTeamCounts: [Int], totalTeams: Int) -> Bool {
+        guard !usedTeamCounts.isEmpty, totalTeams > 0 else { return false }
+        return usedTeamCounts.allSatisfy { $0 >= totalTeams }
     }
 }

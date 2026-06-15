@@ -1,14 +1,50 @@
 import Foundation
 
+/// How a tie / all-eliminated round was resolved, for the outcome card.
+enum OutcomeEnding: String, Codable, CaseIterable {
+    case winner          // a clean last-one-standing finish
+    case split           // multi-way tie split into joint winners
+    case rollWeek        // the tied survivors roll the week and replay
+    case everyoneBackIn  // everyone reinstated, picks reset
+
+    var sectionLabel: String {
+        switch self {
+        case .winner, .split: return "RESULT"
+        case .rollWeek, .everyoneBackIn: return "NO CLEAR WINNER"
+        }
+    }
+
+    var headline: String {
+        switch self {
+        case .winner: return "🏆 WINNER"
+        case .split: return "🏆 JOINT WINNERS"
+        case .rollWeek: return "⏭️ ROLL THE WEEK"
+        case .everyoneBackIn: return "🔄 EVERYONE BACK IN"
+        }
+    }
+
+    /// Heading above the player list on the card.
+    var listHeading: String {
+        switch self {
+        case .winner: return "Takes it all"
+        case .split: return "Pot is split"
+        case .rollWeek: return "Still in — pick again"
+        case .everyoneBackIn: return "Back in, picks reset"
+        }
+    }
+}
+
 /// Which summary card to render (spec §13b.1).
-enum SummaryType {
+enum SummaryType: Equatable {
     case picks    // who picked what — after the deadline / picks finalised
     case results  // who survived / went out — after the round closed
+    case outcome(OutcomeEnding)  // how a tie / all-eliminated round resolved
 
     var sectionLabel: String {
         switch self {
         case .picks: return "PICKS"
         case .results: return "RESULTS"
+        case .outcome(let ending): return ending.sectionLabel
         }
     }
 }
@@ -45,6 +81,10 @@ struct SummaryData {
     let eliminated: [String]
     let managerSurvived: Bool
     let managerEliminated: Bool
+
+    // Outcome summary (tie / all-eliminated resolution)
+    let outcome: OutcomeEnding?
+    let outcomePlayers: [String]   // winners, carried-forward, or everyone
 
     // Footer (game-level standing)
     let activeCount: Int
@@ -105,6 +145,24 @@ struct SummaryData {
         let activeNow = game.players.filter { $0.status == .active || $0.status == .winner }.count
         let eliminatedNow = game.players.filter { $0.status == .eliminated }.count
 
+        // Outcome: which players to name depends on the ending. Names respect the
+        // game's anonymity setting ("Player 3" when anonymous).
+        let anonymous = game.anonymityMode == .anonymous
+        var outcome: OutcomeEnding?
+        var outcomePlayers: [String] = []
+        if case .outcome(let ending) = type {
+            outcome = ending
+            let relevant: [Player]
+            switch ending {
+            case .winner, .split:    relevant = game.players.filter { $0.status == .winner }
+            case .rollWeek:          relevant = game.players.filter { $0.status == .active }
+            case .everyoneBackIn:    relevant = game.players
+            }
+            outcomePlayers = relevant
+                .sorted { $0.entryNumber < $1.entryNumber }
+                .map { $0.displayName(anonymous: anonymous) }
+        }
+
         return SummaryData(
             type: type,
             mode: game.anonymityMode,
@@ -118,6 +176,8 @@ struct SummaryData {
             eliminated: eliminatedSorted.map(displayName),
             managerSurvived: managerPlayerId.map { id in survived.contains { $0.id == id } } ?? false,
             managerEliminated: managerPlayerId.map { id in eliminated.contains { $0.id == id } } ?? false,
+            outcome: outcome,
+            outcomePlayers: outcomePlayers,
             activeCount: activeNow,
             eliminatedCount: eliminatedNow
         )
@@ -128,7 +188,7 @@ struct SummaryData {
         formatter.dateFormat = "EEE d MMM • HH:mm"
         switch type {
         case .picks:   return "Picks locked · \(formatter.string(from: round.deadline))"
-        case .results: return "Full time · \(formatter.string(from: Date()))"
+        case .results, .outcome: return "Full time · \(formatter.string(from: Date()))"
         }
     }
 }

@@ -1,65 +1,129 @@
 import Testing
 import Foundation
+import SwiftData
 @testable import LMS
 
 struct TieResolutionTests {
 
-    private func player(rounds: Int, weak: Int, team: Int? = nil) -> TiePlayer {
-        TiePlayer(id: UUID(), roundsSurvived: rounds, weakPicks: weak, thisRoundTeamId: team)
+    // MARK: - Pure engine: pool exhaustion
+
+    @Test func poolExhaustedWhenEveryTiedPlayerHasUsedEveryTeam() {
+        #expect(GameEngine.poolExhausted(usedTeamCounts: [20, 20], totalTeams: 20))
+        #expect(GameEngine.poolExhausted(usedTeamCounts: [21, 20], totalTeams: 20))
     }
 
-    @Test func splitMakesAllTiedJointWinners() {
-        let p1 = player(rounds: 5, weak: 0)
-        let p2 = player(rounds: 5, weak: 0)
-        let out = GameEngine.resolveTie(rule: .split, tiedPlayers: [p1, p2], allPlayerIds: [p1.id, p2.id])
-        #expect(out == .jointWinners([p1.id, p2.id]))
+    @Test func poolNotExhaustedWhenAnyPlayerHasTeamsLeft() {
+        #expect(!GameEngine.poolExhausted(usedTeamCounts: [20, 19], totalTeams: 20))
+        #expect(!GameEngine.poolExhausted(usedTeamCounts: [], totalTeams: 20))
+        #expect(!GameEngine.poolExhausted(usedTeamCounts: [5], totalTeams: 0))
     }
 
-    @Test func rolloverReinstatesAndRecordsLosingTeams() {
-        let p1 = player(rounds: 5, weak: 0, team: 10)
-        let p2 = player(rounds: 5, weak: 0, team: 11)
-        let out = GameEngine.resolveTie(rule: .rolloverRound, tiedPlayers: [p1, p2], allPlayerIds: [p1.id, p2.id])
-        #expect(out == .rollover(reinstated: [p1.id, p2.id], usedTeamToAdd: [p1.id: 10, p2.id: 11]))
+    // MARK: - Apply outcomes (model-backed)
+
+    private func makeGame() throws -> (ModelContext, Game) {
+        let container = try ModelContainer(
+            for: Game.self, Player.self, Round.self, Pick.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        let game = Game(name: "T", season: "2025/26", allowRepeats: false)
+        context.insert(game)
+        // Round 4 is the tie round (the current round).
+        let round = Round(roundNumber: 4, deadline: .now, game: game)
+        context.insert(round)
+        game.rounds.append(round)
+        return (context, game)
     }
 
-    @Test func fullResetReinstatesEveryoneIncludingPreviouslyEliminated() {
-        let p1 = player(rounds: 5, weak: 0)
-        let alreadyOut = UUID()
-        let out = GameEngine.resolveTie(rule: .fullReset, tiedPlayers: [p1], allPlayerIds: [p1.id, alreadyOut])
-        #expect(out == .fullReset(reinstatedAll: [p1.id, alreadyOut]))
+    private func addPlayer(_ name: String, to game: Game, context: ModelContext, status: PlayerStatus = .active) -> Player {
+        let p = Player(name: name, game: game, entryNumber: game.nextEntryNumber)
+        p.status = status
+        context.insert(p)
+        game.players.append(p)
+        return p
     }
 
-    @Test func suddenDeathStartsPlayoff() {
-        let p1 = player(rounds: 5, weak: 0)
-        let p2 = player(rounds: 5, weak: 0)
-        let out = GameEngine.resolveTie(rule: .suddenDeath, tiedPlayers: [p1, p2], allPlayerIds: [p1.id, p2.id])
-        #expect(out == .suddenDeathPlayoff([p1.id, p2.id]))
+    @Test func splitMakesTiedPlayersJointWinnersAndCompletesGame() throws {
+        let (context, game) = try makeGame()
+        let a = addPlayer("A", to: game, context: context)
+        let b = addPlayer("B", to: game, context: context)
+        _ = addPlayer("C", to: game, context: context, status: .eliminated)
+
+        let follow = GameLogicService.apply(.winners([a.id, b.id]), game: game)
+
+        #expect(follow == nil)
+        #expect(game.status == .complete)
+        #expect(a.status == .winner && b.status == .winner)
+        #expect(game.players.first { $0.name == "C" }?.status == .eliminated)
+        #expect(game.lastOutcome == .split)
     }
 
-    @Test func longevityWinsOnMostRoundsSurvived() {
-        let winner = player(rounds: 14, weak: 3)
-        let loser = player(rounds: 12, weak: 0)
-        let out = GameEngine.resolveTie(rule: .longevity, tiedPlayers: [winner, loser], allPlayerIds: [winner.id, loser.id])
-        #expect(out == .singleWinner(winner.id, reason: "longevity"))
+    @Test func singleWinnerRecordsWinnerEnding() throws {
+        let (context, game) = try makeGame()
+        let a = addPlayer("A", to: game, context: context)
+        GameLogicService.apply(.winners([a.id]), game: game)
+        #expect(game.lastOutcome == .winner)
     }
 
-    @Test func longevityTiebreaksOnFewestWeakPicks() {
-        let winner = player(rounds: 14, weak: 1)
-        let loser = player(rounds: 14, weak: 4)
-        let out = GameEngine.resolveTie(rule: .longevity, tiedPlayers: [winner, loser], allPlayerIds: [winner.id, loser.id])
-        #expect(out == .singleWinner(winner.id, reason: "fewest weak picks"))
+    @Test func rollWeekReinstatesTiedAndResetsPoolWhenExhausted() throws {
+        let (context, game) = try makeGame()
+        let a = addPlayer("A", to: game, context: context, status: .eliminated)
+        let b = addPlayer("B", to: game, context: context, status: .eliminated)
+
+        let follow = GameLogicService.apply(.rollWeek(tiedIds: [a.id, b.id], resetPool: true), game: game)
+
+        #expect(follow == .rollover)
+        #expect(a.status == .active && b.status == .active)
+        #expect(a.teamPoolResetAfterRound == 4 && b.teamPoolResetAfterRound == 4)
+        #expect(game.lastOutcome == .rollWeek)
     }
 
-    @Test func longevityFallsBackToSplitWhenFullyTied() {
-        let p1 = player(rounds: 14, weak: 2)
-        let p2 = player(rounds: 14, weak: 2)
-        let out = GameEngine.resolveTie(rule: .longevity, tiedPlayers: [p1, p2], allPlayerIds: [p1.id, p2.id])
-        #expect(out == .jointWinners([p1.id, p2.id]))
+    @Test func rollWeekDoesNotResetPoolWhenTeamsRemain() throws {
+        let (context, game) = try makeGame()
+        let a = addPlayer("A", to: game, context: context, status: .eliminated)
+
+        GameLogicService.apply(.rollWeek(tiedIds: [a.id], resetPool: false), game: game)
+
+        #expect(a.status == .active)
+        #expect(a.teamPoolResetAfterRound == 0)
     }
 
-    @Test func managerCanDeclareWinnersManually() {
-        let a = UUID(), b = UUID()
-        #expect(GameEngine.declareWinners([a, b]) == .manualWinners([a, b]))
-        #expect(GameEngine.declareWinners([a]) == .manualWinners([a]))
+    @Test func everyoneBackInReinstatesAllAndResetsEveryPool() throws {
+        let (context, game) = try makeGame()
+        let a = addPlayer("A", to: game, context: context, status: .eliminated)
+        let b = addPlayer("B", to: game, context: context, status: .eliminated)
+        let c = addPlayer("C", to: game, context: context, status: .eliminated)
+
+        let follow = GameLogicService.apply(.everyoneBackIn(allIds: [a.id, b.id, c.id]), game: game)
+
+        #expect(follow == .rollover)
+        #expect(game.players.allSatisfy { $0.status == .active })
+        #expect(game.players.allSatisfy { $0.teamPoolResetAfterRound == 4 })
+        #expect(game.lastOutcome == .everyoneBackIn)
+    }
+
+    // MARK: - Used-team boundary
+
+    @Test func usedTeamIdsExcludesPicksBeforeResetBoundary() throws {
+        let (context, game) = try makeGame()
+        let player = addPlayer("A", to: game, context: context)
+
+        // A pick in round 2 (closed) and round 3 (closed).
+        for (number, team) in [(2, 10), (3, 11)] {
+            let round = Round(roundNumber: number, deadline: .now, game: game)
+            round.status = .closed
+            context.insert(round)
+            game.rounds.append(round)
+            let pick = Pick(teamId: team, player: player, round: round)
+            context.insert(pick)
+            player.picks.append(pick)
+        }
+
+        // No boundary → both teams counted.
+        #expect(GameLogicService.usedTeamIds(for: player) == [10, 11])
+
+        // Boundary after round 2 → only round 3's pick counts.
+        player.teamPoolResetAfterRound = 2
+        #expect(GameLogicService.usedTeamIds(for: player) == [11])
     }
 }

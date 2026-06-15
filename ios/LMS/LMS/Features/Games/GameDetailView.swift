@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 private enum RoundSheet: String, Identifiable {
-    case open, picks, results, declare, summaryPicks, summaryResults
+    case open, picks, results, declare, summaryPicks, summaryResults, summaryOutcome
     var id: String { rawValue }
 }
 
@@ -66,6 +66,10 @@ struct GameDetailView: View {
                 if let round = latestClosedRound {
                     SummaryShareView(game: game, round: round, type: .results)
                 }
+            case .summaryOutcome:
+                if let ending = game.lastOutcome, let round = latestClosedRound {
+                    SummaryShareView(game: game, round: round, type: .outcome(ending))
+                }
             }
         }
         .sheet(item: $autoOpenType) { type in
@@ -84,11 +88,8 @@ struct GameDetailView: View {
 
     private var infoSection: some View {
         Section {
-            LabeledContent("Season", value: game.season)
             LabeledContent("Status", value: game.status.rawValue.capitalized)
             LabeledContent("Round", value: "\(currentRound?.roundNumber ?? 0)")
-            LabeledContent("Repeats", value: game.allowRepeats ? "Allowed" : "Off")
-            LabeledContent("Tie rule", value: game.tieRule.label)
         }
     }
 
@@ -108,10 +109,13 @@ struct GameDetailView: View {
                     .disabled(game.activePlayers.isEmpty)
             }
 
-            if game.status != .complete && !game.activePlayers.isEmpty {
+            if game.status != .complete {
+                // Available only once a round has been played and at least one
+                // player is still standing — nothing to declare before then.
                 Button { sheet = .declare } label: {
                     Label("Declare Winner(s)…", systemImage: "trophy")
                 }
+                .disabled(latestClosedRound == nil || game.activePlayers.isEmpty)
             }
         }
     }
@@ -129,6 +133,13 @@ struct GameDetailView: View {
                     Label("Share Results Card", systemImage: "square.and.arrow.up")
                 }
                 .disabled(latestClosedRound == nil)
+
+                if let ending = game.lastOutcome {
+                    Button { sheet = .summaryOutcome } label: {
+                        Label("Share \(ending.headline) Card", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(latestClosedRound == nil)
+                }
             }
         }
     }

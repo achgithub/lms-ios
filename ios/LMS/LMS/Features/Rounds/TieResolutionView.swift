@@ -1,55 +1,52 @@
 import SwiftUI
 
-/// Shown when everyone still active was eliminated in the same round (§13c.4).
-/// Applies the game's configured tie rule, or lets the manager declare winner(s).
+/// Shown when everyone still active was eliminated in the same round (§13c.4) —
+/// "more than one go out on the last round." The manager picks the resolution in
+/// the moment: split the win, roll the week for the tied players, or bring
+/// everyone back in. (A manual winner declaration lives in `DeclareWinnersView`.)
 struct TieResolutionView: View {
     @Environment(\.dismiss) private var dismiss
     let game: Game
-    let round: Round
     let tiedPlayers: [Player]
-    /// Reports the resolution: a follow-up round type (`.rollover`/`.playoff`) to
-    /// open next, or `nil` when the game is now complete.
+    /// True when the tied group has used every team in the league(s), so a
+    /// roll-the-week must reopen their pool. Computed by the caller (it has the
+    /// loaded team data).
+    let poolExhausted: Bool
+    /// Reports the resolution: a follow-up round type (`.rollover`) to open next,
+    /// or `nil` when the game is now complete.
     let onResolved: (RoundType?) -> Void
 
-    @State private var manualSelection: Set<UUID> = []
-
-    private var sortedTied: [Player] {
-        tiedPlayers.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
+    private var tiedIds: [UUID] { tiedPlayers.map(\.id) }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Everyone still in was eliminated this round. Resolve it:")
+                    Text("Everyone still in was eliminated this round — no clear winner. How should it resolve?")
                         .font(.subheadline)
                 }
 
-                Section("Configured rule") {
-                    Text(game.tieRule.label).bold()
-                    Text(game.tieRule.detail).font(.caption).foregroundStyle(.secondary)
-                    Button("Apply “\(game.tieRule.label)”") { applyConfigured() }
-                }
-
-                Section("Or declare winner(s) manually") {
-                    ForEach(sortedTied, id: \.id) { player in
-                        Button {
-                            toggle(player.id)
-                        } label: {
-                            HStack {
-                                Text(player.name).foregroundStyle(.primary)
-                                Spacer()
-                                if manualSelection.contains(player.id) {
-                                    Image(systemName: "checkmark").foregroundStyle(.blue)
-                                }
-                            }
-                        }
+                Section {
+                    Button {
+                        resolve(.winners(tiedIds))
+                    } label: {
+                        actionLabel("Split the win", "Joint winners — the prize is divided.")
                     }
-                    Button("Declare selected as winner(s)") { applyManual() }
-                        .disabled(manualSelection.isEmpty)
+
+                    Button {
+                        resolve(.rollWeek(tiedIds: tiedIds, resetPool: poolExhausted))
+                    } label: {
+                        actionLabel("Roll the week", rollDetail)
+                    }
+
+                    Button {
+                        resolve(.everyoneBackIn(allIds: game.players.map(\.id)))
+                    } label: {
+                        actionLabel("Everyone back in", "All \(game.players.count) players reinstated, picks reset.")
+                    }
                 }
             }
-            .navigationTitle("Round Tie")
+            .navigationTitle("No Clear Winner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Later") { dismiss() } }
@@ -58,37 +55,20 @@ struct TieResolutionView: View {
         .interactiveDismissDisabled()
     }
 
-    private func toggle(_ id: UUID) {
-        if manualSelection.contains(id) { manualSelection.remove(id) } else { manualSelection.insert(id) }
+    private var rollDetail: String {
+        let base = "The \(tiedPlayers.count) tied players carry forward and replay."
+        return poolExhausted ? base + " Their team pool resets — all teams open again." : base
     }
 
-    private func applyConfigured() {
-        let tiePlayers = GameLogicService.tiePlayers(from: tiedPlayers, round: round)
-        let outcome = GameEngine.resolveTie(
-            rule: game.tieRule,
-            tiedPlayers: tiePlayers,
-            allPlayerIds: game.players.map(\.id)
-        )
-        GameLogicService.apply(outcome, game: game)
-        finish(followUp: followUpRound(for: outcome))
-    }
-
-    private func applyManual() {
-        GameLogicService.apply(GameEngine.declareWinners(Array(manualSelection)), game: game)
-        finish(followUp: nil)
-    }
-
-    /// Resolutions that reinstate players need a fresh round opened next.
-    private func followUpRound(for outcome: TieOutcome) -> RoundType? {
-        switch outcome {
-        case .rollover: return .rollover
-        case .suddenDeathPlayoff: return .playoff
-        case .fullReset: return .normal
-        case .jointWinners, .singleWinner, .manualWinners: return nil
+    private func actionLabel(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.headline).foregroundStyle(.primary)
+            Text(detail).font(.caption).foregroundStyle(.secondary)
         }
     }
 
-    private func finish(followUp: RoundType?) {
+    private func resolve(_ outcome: TieOutcome) {
+        let followUp = GameLogicService.apply(outcome, game: game)
         onResolved(followUp)
         dismiss()
     }

@@ -57,7 +57,7 @@ struct DeclareWinnersView: View {
     }
 
     private func apply() {
-        GameLogicService.apply(GameEngine.declareWinners(Array(selection)), game: game)
+        GameLogicService.apply(.winners(Array(selection)), game: game)
         onDone()
         dismiss()
     }
