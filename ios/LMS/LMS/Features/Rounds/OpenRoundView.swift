@@ -19,7 +19,7 @@ struct OpenRoundView: View {
     @State private var errorMessage: String?
 
     // Filters
-    @State private var selectedLeague: LeagueOption
+    @State private var leagueFilter: String?         // nil = all the game's leagues
     @State private var matchdayFilter: Int?          // nil = all matchdays
     @State private var unplayedOnly = true           // default: upcoming fixtures
     @State private var dateFilterOn = false
@@ -29,13 +29,9 @@ struct OpenRoundView: View {
     @State private var selectedFixtureIds: Set<Int> = []
     @State private var deadline = Date()
 
-    init(game: Game, roundType: RoundType = .normal, onOpened: @escaping () -> Void = {}) {
-        self.game = game
-        self.roundType = roundType
-        self.onOpened = onOpened
-        // Stay in the game's current league for follow-up rounds; else home.
-        _selectedLeague = State(initialValue: game.currentRound?.league ?? Leagues.home)
-    }
+    /// The league(s) this game runs in — fixtures are pooled across them.
+    private var gameLeagues: [LeagueOption] { game.leagues }
+    private var isBlended: Bool { gameLeagues.count > 1 }
 
     private var allFixtures: [FixtureDTO] { data?.fixtures ?? [] }
 
@@ -43,10 +39,14 @@ struct OpenRoundView: View {
         Array(Set(allFixtures.compactMap(\.matchday))).sorted()
     }
 
+    /// The league a fixture belongs to (via its home team's league).
+    private func leagueId(of f: FixtureDTO) -> String? { data?.leagueIdByTeam[f.homeTeamId] }
+
     /// Fixtures after every active filter, sorted by kickoff.
     private var visibleFixtures: [FixtureDTO] {
         allFixtures.filter { f in
-            (matchdayFilter == nil || f.matchday == matchdayFilter)
+            (leagueFilter == nil || leagueId(of: f) == leagueFilter)
+                && (matchdayFilter == nil || f.matchday == matchdayFilter)
                 && (!unplayedOnly || Self.isUnplayed(f))
                 && (!dateFilterOn || dateInRange(f))
         }
@@ -72,19 +72,21 @@ struct OpenRoundView: View {
                     Button("Open") { create() }.disabled(selectedFixtureIds.isEmpty)
                 }
             }
-            .task(id: selectedLeague) { await load() }
+            .task { await load() }
         }
     }
 
     private var form: some View {
         Form {
-            Section("League") {
-                Picker("League", selection: $selectedLeague) {
-                    ForEach(Leagues.all) { Text($0.name).tag($0) }
-                }
-            }
-
             Section("Filters") {
+                if isBlended {
+                    Picker("League", selection: $leagueFilter) {
+                        Text("All leagues").tag(String?.none)
+                        ForEach(gameLeagues) { Text($0.name).tag(String?.some($0.id)) }
+                    }
+                } else {
+                    LabeledContent("League", value: gameLeagues.first?.name ?? "—")
+                }
                 Picker("Matchday", selection: $matchdayFilter) {
                     Text("All").tag(Int?.none)
                     ForEach(matchdays, id: \.self) { Text("Matchday \($0)").tag(Int?.some($0)) }
@@ -109,6 +111,12 @@ struct OpenRoundView: View {
                                 Image(systemName: selectedFixtureIds.contains(fixture.id) ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(selectedFixtureIds.contains(fixture.id) ? .green : .secondary)
                                 FixtureLabel(fixture: fixture, teamsById: data?.teamsById ?? [:])
+                                if isBlended, let lid = leagueId(of: fixture), let l = Leagues.byId(lid) {
+                                    Text(l.shortName)
+                                        .font(.caption2.weight(.bold))
+                                        .padding(.horizontal, 5).padding(.vertical, 2)
+                                        .background(.tint.opacity(0.15), in: Capsule())
+                                }
                             }
                         }
                         .buttonStyle(.plain)
@@ -180,17 +188,20 @@ struct OpenRoundView: View {
         isLoading = true
         errorMessage = nil
         do {
-            let fresh = try await LeagueData.load(for: selectedLeague)
+            let fresh = try await LeagueData.load(for: gameLeagues)
             data = fresh
-            // Default to the first matchday that still has unplayed fixtures —
-            // the current/next one — and preselect its fixtures.
-            let firstUnplayedMatchday = fresh.fixtures
-                .filter { Self.isUnplayed($0) }
-                .compactMap(\.matchday)
-                .min()
-            matchdayFilter = firstUnplayedMatchday ?? matchdays.first
-            selectedFixtureIds = Set(visibleFixtures.map(\.id))
-            syncDeadlineToSelection()
+            // Single-league: default to the first matchday that still has unplayed
+            // fixtures (the current/next one) and preselect it. Blended games mix
+            // leagues' matchday numbers, so leave the pool open for the manager.
+            if !isBlended {
+                let firstUnplayedMatchday = fresh.fixtures
+                    .filter { Self.isUnplayed($0) }
+                    .compactMap(\.matchday)
+                    .min()
+                matchdayFilter = firstUnplayedMatchday ?? matchdays.first
+                selectedFixtureIds = Set(visibleFixtures.map(\.id))
+                syncDeadlineToSelection()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -203,7 +214,6 @@ struct OpenRoundView: View {
             fixtureIds: Array(selectedFixtureIds),
             deadline: deadline,
             roundType: roundType,
-            leagueId: selectedLeague.id,
             context: context
         )
         onOpened()

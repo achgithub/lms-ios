@@ -93,7 +93,7 @@ struct PicksEntryView: View {
         isLoading = true
         errorMessage = nil
         do {
-            data = try await LeagueData.load(for: round.league)
+            data = try await LeagueData.load(for: game.leagues)
         } catch {
             errorMessage = error.localizedDescription
         }

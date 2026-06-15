@@ -10,7 +10,7 @@ import SwiftData
 struct LMSApp: App {
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            AppRootView()
         }
         .modelContainer(for: [Game.self, Player.self, Round.self, Pick.self, RosterMember.self, PlayerGroup.self])
     }

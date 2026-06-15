@@ -49,6 +49,18 @@ final class Entitlements {
     /// The single gate the UI uses to decide whether to render ad placements.
     var shouldShowAds: Bool { !tier.removesAds }
 
+    /// How many leagues the user may have enabled at once (ticked in Settings).
+    /// Free = 1; any paid tier = the whole catalogue. NOTE: when the Tier enum
+    /// collapses to free/manager/club/pro this becomes 1 / 1 / 3 / all — change
+    /// it here only.
+    var leagueAllowance: Int {
+        tier.removesAds ? Leagues.all.count : 1
+    }
+
+    /// True when the user may enable more than one league (so the Settings
+    /// checklist and in-game league chooser are worth showing as multi-select).
+    var canHaveMultipleLeagues: Bool { leagueAllowance > 1 }
+
     /// Local testing override — flips the tier with no purchase. Pre-release only;
     /// gate behind a dev flag before shipping (production reads RevenueCat).
     func setDevTier(_ tier: Tier) {

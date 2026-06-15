@@ -65,8 +65,7 @@ struct SummaryShareView: View {
         errorMessage = nil
         // Team data drives tiles/names; degrade gracefully to ids if offline.
         do {
-            let teams = try await APIClient.shared.teams()
-            teamsById = Dictionary(teams.map { ($0.externalId, $0) }, uniquingKeysWith: { a, _ in a })
+            teamsById = try await LeagueData.load(for: game.leagues).teamsById
         } catch {
             // Non-fatal — render with "Team <id>" fallbacks rather than failing.
             teamsById = [:]

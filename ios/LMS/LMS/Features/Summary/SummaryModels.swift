@@ -108,7 +108,7 @@ struct SummaryData {
         return SummaryData(
             type: type,
             mode: game.anonymityMode,
-            leagueName: LeagueConfig.shared.leagueName,
+            leagueName: game.leagueLabel,
             appName: LeagueConfig.shared.appName,
             gameName: game.name,
             roundNumber: round.roundNumber,

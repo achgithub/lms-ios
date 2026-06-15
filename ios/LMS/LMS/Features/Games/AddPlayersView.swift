@@ -18,17 +18,24 @@ struct AddPlayersView: View {
     var body: some View {
         NavigationStack {
             List {
-                if !managerTrimmed.isEmpty && !managerInGame {
-                    Section("You") {
+                if !managerTrimmed.isEmpty {
+                    Section {
                         Button {
-                            addManager()
+                            managerInGame ? removeManager() : addManager()
                         } label: {
                             HStack {
                                 Text("\(managerTrimmed) (you)").foregroundStyle(.primary)
                                 Spacer()
-                                Image(systemName: "plus.circle").foregroundStyle(.blue)
+                                Image(systemName: managerInGame ? "minus.circle.fill" : "plus.circle")
+                                    .foregroundStyle(managerInGame ? .red : .blue)
                             }
                         }
+                    } header: {
+                        Text("You")
+                    } footer: {
+                        Text(managerInGame
+                             ? "You're playing — your pick shows on shared cards (⚑)."
+                             : "You're not playing this game — no ⚑ on cards.")
                     }
                 }
 
@@ -126,5 +133,13 @@ struct AddPlayersView: View {
         let player = Player(name: managerTrimmed, game: game, isManager: true)
         context.insert(player)
         game.players.append(player)
+    }
+
+    /// Remove the manager from this game (they're running it but not playing).
+    private func removeManager() {
+        for player in game.players where player.isManager
+            || player.name.localizedCaseInsensitiveCompare(managerTrimmed) == .orderedSame {
+            context.delete(player)
+        }
     }
 }

@@ -99,7 +99,7 @@ struct ResultsEntryView: View {
         isLoading = true
         errorMessage = nil
         do {
-            data = try await LeagueData.load(for: round.league)
+            data = try await LeagueData.load(for: game.leagues)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -109,7 +109,7 @@ struct ResultsEntryView: View {
     private func pullFromServer() async {
         // Re-fetch so the rewarded ad buys genuinely fresh results, not whatever
         // was loaded when the sheet opened. Falls back to current data on failure.
-        if let fresh = try? await LeagueData.load() { data = fresh }
+        if let fresh = try? await LeagueData.load(for: game.leagues) { data = fresh }
         for fixture in roundFixtures {
             if fixture.status == "POSTPONED" {
                 outcomes[fixture.id] = .postponed
@@ -137,7 +137,7 @@ struct ResultsEntryView: View {
             round,
             game: game,
             standingsByTeam: data.standingsByTeam,
-            teamsCount: round.league.teamsCount,
+            teamsCountByTeam: data.teamsCountByTeam,
             context: context
         )
 

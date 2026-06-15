@@ -79,7 +79,6 @@ enum GameLogicService {
         fixtureIds: [Int],
         deadline: Date,
         roundType: RoundType = .normal,
-        leagueId: String = Leagues.home.id,
         context: ModelContext
     ) -> Round {
         let round = Round(
@@ -87,7 +86,6 @@ enum GameLogicService {
             deadline: deadline,
             fixtureIds: fixtureIds,
             roundType: roundType,
-            leagueId: leagueId,
             game: game
         )
         context.insert(round)
@@ -184,7 +182,7 @@ enum GameLogicService {
         _ round: Round,
         game: Game,
         standingsByTeam: [Int: StandingDTO],
-        teamsCount: Int,
+        teamsCountByTeam: [Int: Int],
         context: ModelContext
     ) -> RoundCloseResult {
         let activeBefore = game.players.filter { $0.status == .active }
@@ -201,7 +199,7 @@ enum GameLogicService {
         for player in activeBefore {
             // Track weak picks for every active player's pick this round.
             if let pick = pick(for: player, in: round),
-               GameEngine.isWeakPick(position: standingsByTeam[pick.teamId]?.position, teamsCount: teamsCount) {
+               GameEngine.isWeakPick(position: standingsByTeam[pick.teamId]?.position, teamsCount: teamsCountByTeam[pick.teamId] ?? 0) {
                 player.weakPicks += 1
             }
             if eliminatedIds.contains(player.id) {

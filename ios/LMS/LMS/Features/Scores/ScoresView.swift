@@ -1,12 +1,19 @@
 import SwiftUI
 
-/// Live fixture scores from a league's Worker, filterable by league, date and
-/// team. Switching league targets that league's Worker. The monetization gate is
-/// on explicit refresh *actions* in the game flow (see AdGate), not on browsing.
+/// Live fixture scores for one of the enabled leagues, filterable by league,
+/// date and team. The monetization gate is on explicit refresh *actions* (see
+/// AdGate), not on browsing.
 struct ScoresView: View {
-    @State private var selectedLeague: LeagueOption = Leagues.home
+    @Environment(EnabledLeagues.self) private var enabled
+    @State private var selectedLeague: LeagueOption?
     @State private var dateFilter: DateFilter = .all
     @State private var selectedTeamId: Int?
+
+    /// The league currently shown (defaults to the first enabled league).
+    private var league: LeagueOption { selectedLeague ?? enabled.leagues.first ?? Leagues.home }
+    private var leagueBinding: Binding<LeagueOption> {
+        Binding(get: { league }, set: { selectedLeague = $0 })
+    }
 
     @State private var items: [ScoreItem] = []
     @State private var teamsById: [Int: TeamDTO] = [:]
@@ -53,13 +60,12 @@ struct ScoresView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }
                 ToolbarItem(placement: .topBarTrailing) { refreshButton }
-                ToolbarItem(placement: .topBarTrailing) { leagueMenu }
             }
             // Passive cached load when the tab opens or the league changes — not
             // gated (see AdGate). Getting *fresh* data on demand is the gated
             // action: the Refresh button routes through AdGate, and there's no
             // ungated pull-to-refresh, so free users can't bypass the gate.
-            .task(id: selectedLeague) { await load() }
+            .task(id: league) { await load() }
         }
     }
 
@@ -74,20 +80,13 @@ struct ScoresView: View {
 
     // MARK: Filter controls
 
-    private var leagueMenu: some View {
-        Menu {
-            Picker("League", selection: $selectedLeague) {
-                ForEach(Leagues.all) { league in
-                    Text(league.name).tag(league)
-                }
-            }
-        } label: {
-            Label(selectedLeague.shortName, systemImage: "trophy")
-        }
-    }
-
     private var filterMenu: some View {
         Menu {
+            if enabled.leagues.count > 1 {
+                Picker("League", selection: leagueBinding) {
+                    ForEach(enabled.leagues) { Text($0.name).tag($0) }
+                }
+            }
             Picker("Date", selection: $dateFilter) {
                 Text("All dates").tag(DateFilter.all)
                 Text("Today").tag(DateFilter.today)
@@ -117,7 +116,7 @@ struct ScoresView: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
-        let client = selectedLeague.client
+        let client = league.client
         do {
             // /scores = live (status, minute, score); /fixtures adds kickoff +
             // matchday. Both cover the full season; we join them by match id.
