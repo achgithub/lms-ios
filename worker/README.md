@@ -68,16 +68,18 @@ pnpm deploy:pl
 
 ## Cron (maintenance window, §10.3)
 
-Configured in `wrangler.jsonc` under `env.pl.triggers.crons`:
+Configured in `wrangler.jsonc` under each `env.<league>.triggers.crons`. One
+nightly maintenance trigger per league (`runMaintenance`: teams → fixtures →
+standings → score cache warm, in order):
 
-| Cron          | Job                                   |
-|---------------|---------------------------------------|
-| `0 4 * * 1,4` | standings sync (Mon & Thu)            |
-| `1 4 * * *`   | teams + fixtures sync (daily)         |
-| `2 4 * * *`   | score cache warm + counter reset      |
+| Cron        | League    | Job                              |
+|-------------|-----------|----------------------------------|
+| `0 4 * * *` | PL, ELC   | nightly maintenance (UTC window) |
+| `0 3 * * *` | PD        | nightly maintenance (CET window) |
 
-Times are UTC, winter offset (safe — worst case runs 1h early in summer, still
-the dead zone). CET leagues shift to `0/1/2 3 * * *`.
+One cron per league keeps us under the Workers **free-plan cap of 5 cron
+triggers per account**. Times are UTC, winter offset (safe — worst case runs 1h
+early in summer, still the dead zone); CET leagues shift to `0 3 * * *`.
 
 ## Layout
 

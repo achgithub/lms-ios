@@ -12,10 +12,16 @@
   "scripts": {
     "dev": "wrangler dev --env pl",
     "deploy:pl": "wrangler deploy --env pl",
+    "deploy:elc": "wrangler deploy --env elc",
+    "deploy:pd": "wrangler deploy --env pd",
     "types": "wrangler types --env pl",
     "typecheck": "tsc --noEmit",
     "db:apply:pl": "wrangler d1 execute lms-pl-db --env pl --remote --file=./schema.sql",
-    "db:apply:pl:local": "wrangler d1 execute lms-pl-db --env pl --local --file=./schema.sql"
+    "db:apply:pl:local": "wrangler d1 execute lms-pl-db --env pl --local --file=./schema.sql",
+    "db:apply:elc": "wrangler d1 execute lms-elc-db --env elc --remote --file=./schema.sql",
+    "db:apply:elc:local": "wrangler d1 execute lms-elc-db --env elc --local --file=./schema.sql",
+    "db:apply:pd": "wrangler d1 execute lms-pd-db --env pd --remote --file=./schema.sql",
+    "db:apply:pd:local": "wrangler d1 execute lms-pd-db --env pd --local --file=./schema.sql"
   },
   "dependencies": {
     "hono": "^4.6.14"

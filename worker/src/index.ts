@@ -11,7 +11,7 @@ import { fixtures } from "./routes/fixtures";
 import { scores } from "./routes/scores";
 import { standings } from "./routes/standings";
 import { teams } from "./routes/teams";
-import { runCron } from "./sync";
+import { runMaintenance } from "./sync";
 import { getLeagueConfig } from "./types";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -42,14 +42,15 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
 
-  // Cron-driven sync of provider data into D1 + KV (spec §10.3).
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+  // Single nightly maintenance cron per league (spec §10.3). One trigger per env
+  // keeps us under the Workers free-plan cap of 5 cron triggers per account.
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     const cfg = getLeagueConfig(env);
     const provider = new FootballDataProvider(
       env.FOOTBALL_DATA_TOKEN,
       cfg.footballDataCode,
       cfg.leagueId,
     );
-    ctx.waitUntil(runCron(controller.cron, env.DB, env.SCORES, provider));
+    ctx.waitUntil(runMaintenance(env.DB, env.SCORES, provider));
   },
 } satisfies ExportedHandler<Env>;

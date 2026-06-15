@@ -1,0 +1,12 @@
+{
+  "leagueId": "PD",
+  "leagueName": "La Liga",
+  "footballDataCode": "PD",
+  "teamsCount": 20,
+  "roundsPerSeason": 38,
+  "scoreTtlSubSeconds": 20,
+  "scoreTtlFreeSeconds": 5400,
+  "timezone": "Europe/Madrid",
+  "maintenanceWindowUTC": "03:00",
+  "cronMaintenance": "0 3 * * *"
+}

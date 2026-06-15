@@ -35,32 +35,23 @@ export async function warmScores(kv: KVNamespace, provider: Provider): Promise<n
   return scores.length;
 }
 
-// Dispatch a fired cron to the right job. Cron strings must match wrangler.jsonc.
-export async function runCron(
-  cron: string,
+// Full nightly maintenance, run by the single per-league cron (see wrangler.jsonc).
+// The Workers free plan caps cron triggers at 5 per account, so each league gets
+// one daily trigger that runs the whole sequence rather than three split jobs.
+// Order matters: teams first (fixtures + standings reference them), then fixtures,
+// standings, and finally the score-cache warm. All of this runs in the league's
+// maintenance window (the dead zone), so the extra serial calls are free of
+// contention and well within the provider's rate limit.
+export async function runMaintenance(
   db: D1Database,
   kv: KVNamespace,
   provider: Provider,
 ): Promise<void> {
-  switch (cron) {
-    case "0 4 * * 1,4": {
-      const n = await syncStandings(db, provider);
-      console.log(JSON.stringify({ msg: "cron standings sync", rows: n }));
-      return;
-    }
-    case "1 4 * * *": {
-      // Teams first (fixtures reference them), then fixtures. Teams are cheap.
-      const t = await syncTeams(db, provider);
-      const f = await syncFixtures(db, provider);
-      console.log(JSON.stringify({ msg: "cron fixtures sync", teams: t, fixtures: f }));
-      return;
-    }
-    case "2 4 * * *": {
-      const n = await warmScores(kv, provider);
-      console.log(JSON.stringify({ msg: "cron score warm", entries: n }));
-      return;
-    }
-    default:
-      console.warn(JSON.stringify({ msg: "unrecognised cron", cron }));
-  }
+  const t = await syncTeams(db, provider);
+  const f = await syncFixtures(db, provider);
+  const s = await syncStandings(db, provider);
+  const n = await warmScores(kv, provider);
+  console.log(
+    JSON.stringify({ msg: "cron maintenance", teams: t, fixtures: f, standings: s, scores: n }),
+  );
 }
