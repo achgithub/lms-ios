@@ -12,7 +12,7 @@ struct FixtureLabel: View {
     let teamsById: [Int: TeamDTO]
 
     private func name(_ id: Int) -> String {
-        teamsById[id]?.shortName ?? teamsById[id]?.tla ?? "Team \(id)"
+        teamsById[id]?.shortName ?? teamsById[id]?.name ?? "Team \(id)"
     }
     private var kickoff: Date? { FixtureFormat.kickoffDate(fixture.kickoff) }
 

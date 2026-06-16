@@ -40,7 +40,7 @@ struct StandingsView: View {
                     // Same gate as Scores: a fresh pull is a server fetch, so free
                     // users watch a rewarded ad first (see AdGate); subscribers
                     // refresh instantly.
-                    Button { AdGate.run { Task { await load() } } } label: {
+                    Button { AdGate.run { Task { await load(force: true) } } } label: {
                         Image(systemName: "arrow.clockwise")
                     }
                     .disabled(isLoading)
@@ -63,7 +63,7 @@ struct StandingsView: View {
             }
             // Reloads when the chosen league changes (browsing, so not ad-gated —
             // the explicit refresh button is the gated fetch action).
-            .task(id: league) { await load() }
+            .task(id: league) { await load(force: false) }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 4) {
                     if let lastRefreshed {
@@ -86,17 +86,30 @@ struct StandingsView: View {
         }
     }
 
-    private func load() async {
+    /// `force` (the ad-gated refresh) hits the network and overwrites the cache;
+    /// otherwise the league is served from its cache, fetching only the first time
+    /// (empty cache) — so a relaunch isn't a free refresh.
+    private func load(force: Bool) async {
         isLoading = true
         errorMessage = nil
+        let key = LeagueDataCache.standingsKey(league.id)
+        if !force, let cached = LeagueDataCache.load(LeagueDataCache.Standings.self, key: key) {
+            standings = cached.rows
+            teamsById = Dictionary(cached.teams.map { ($0.externalId, $0) }, uniquingKeysWith: { first, _ in first })
+            lastRefreshed = cached.date
+            isLoading = false
+            return
+        }
         let client = league.client
         do {
             async let standingsReq = client.standings()
             async let teamsReq = client.teams()
-            let (standings, teams) = try await (standingsReq, teamsReq)
-            self.standings = standings
-            self.teamsById = Dictionary(teams.map { ($0.externalId, $0) }, uniquingKeysWith: { first, _ in first })
-            lastRefreshed = Date()
+            let (rows, teams) = try await (standingsReq, teamsReq)
+            standings = rows
+            teamsById = Dictionary(teams.map { ($0.externalId, $0) }, uniquingKeysWith: { first, _ in first })
+            let now = Date()
+            lastRefreshed = now
+            LeagueDataCache.save(LeagueDataCache.Standings(date: now, rows: rows, teams: teams), key: key)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -108,9 +121,14 @@ private struct StandingRow: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     let row: StandingDTO
     let team: TeamDTO?
+    @State private var expanded = false
 
     private var isPad: Bool { sizeClass == .regular }
     private var nameFont: Font { isPad ? .title3 : .body }
+    // Short name by default (consistent with Scores/Fixtures); tap to expand to
+    // the full name for long ones (e.g. Wolverhampton).
+    private var shortName: String { team?.shortName ?? team?.name ?? "Team \(row.teamId)" }
+    private var fullName: String { team?.name ?? team?.shortName ?? "Team \(row.teamId)" }
 
     var body: some View {
         HStack(spacing: isPad ? 16 : 12) {
@@ -121,9 +139,9 @@ private struct StandingRow: View {
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(width: isPad ? 40 : 28, alignment: .leading)
                 .foregroundStyle(.secondary)
-            Text(team?.shortName ?? team?.name ?? "Team \(row.teamId)")
+            Text(expanded ? fullName : shortName)
                 .font(nameFont)
-                .lineLimit(1)
+                .lineLimit(expanded ? nil : 1)
             Spacer()
             // Played / Won / Drawn / Lost — labelled + larger on iPad.
             HStack(spacing: isPad ? 18 : 10) {
@@ -138,6 +156,8 @@ private struct StandingRow: View {
                 .font(nameFont)
                 .monospacedDigit()
         }
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
         .padding(.vertical, isPad ? 6 : 0)
     }
 

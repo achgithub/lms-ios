@@ -54,8 +54,6 @@ enum SummaryType: Equatable {
 /// One match on the fixtures card.
 struct SummaryFixture: Identifiable {
     let id: Int
-    let homeTla: String?
-    let awayTla: String?
     let homeName: String
     let awayName: String
     let kickoff: Date?
@@ -64,7 +62,6 @@ struct SummaryFixture: Identifiable {
 /// One team's pick group for the Picks summary (spec §13b.3).
 struct SummaryTeamGroup: Identifiable {
     let teamId: Int
-    let tla: String?
     let teamName: String
     let playerNames: [String]   // alphabetical; manager (if known) carries a flag
     let includesManager: Bool
@@ -105,9 +102,6 @@ struct SummaryData {
     let activeCount: Int
     let eliminatedCount: Int
 
-    /// Watermark domain — TBC in the spec (§13b.6); placeholder until confirmed.
-    static let watermarkDomain = "lms-pl.app"
-
     var nextRoundNumber: Int { roundNumber + 1 }
 
     static func make(
@@ -128,8 +122,6 @@ struct SummaryData {
             .map { f in
                 SummaryFixture(
                     id: f.id,
-                    homeTla: teamsById[f.homeTeamId]?.tla,
-                    awayTla: teamsById[f.awayTeamId]?.tla,
                     homeName: name(f.homeTeamId),
                     awayName: name(f.awayTeamId),
                     kickoff: FixtureFormat.kickoffDate(f.kickoff)
@@ -147,7 +139,6 @@ struct SummaryData {
             let sorted = players.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             return SummaryTeamGroup(
                 teamId: teamId,
-                tla: teamsById[teamId]?.tla,
                 teamName: name(teamId),
                 playerNames: sorted.map(displayName),
                 includesManager: managerPlayerId.map { id in sorted.contains { $0.id == id } } ?? false

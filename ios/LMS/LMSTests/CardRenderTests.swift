@@ -16,11 +16,11 @@ struct CardRenderTests {
 
     @Test func renderPicksCard() {
         let groups = [
-            SummaryTeamGroup(teamId: 1, tla: "ARS", teamName: "Arsenal",
+            SummaryTeamGroup(teamId: 1, teamName: "Arsenal",
                              playerNames: ["Andy", "Dave", "Pete", "Sarah"], includesManager: true),
-            SummaryTeamGroup(teamId: 2, tla: "MUN", teamName: "Man Utd",
+            SummaryTeamGroup(teamId: 2, teamName: "Man Utd",
                              playerNames: ["Chris", "Jake", "Lucy", "Mo", "Tom"], includesManager: false),
-            SummaryTeamGroup(teamId: 3, tla: "CHE", teamName: "Chelsea",
+            SummaryTeamGroup(teamId: 3, teamName: "Chelsea",
                              playerNames: ["Nina"], includesManager: false),
         ]
         let data = SummaryData(
@@ -34,10 +34,9 @@ struct CardRenderTests {
 
     @Test func renderFixturesCard() {
         let fx = [
-            SummaryFixture(id: 1, homeTla: "ARS", awayTla: "CHE", homeName: "Arsenal",
-                           awayName: "Chelsea", kickoff: .now),
-            SummaryFixture(id: 2, homeTla: "MUN", awayTla: "LIV", homeName: "Man Utd",
-                           awayName: "Liverpool", kickoff: .now.addingTimeInterval(7200)),
+            SummaryFixture(id: 1, homeName: "Arsenal", awayName: "Chelsea", kickoff: .now),
+            SummaryFixture(id: 2, homeName: "Man Utd", awayName: "Liverpool",
+                           kickoff: .now.addingTimeInterval(7200)),
         ]
         let data = SummaryData(
             type: .fixtures, mode: .named, leagueName: "England — Premier League",

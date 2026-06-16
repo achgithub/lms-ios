@@ -1,9 +1,12 @@
 import Foundation
 
-/// Wire types returned by the Worker (already camelCase JSON). Read-only — the
-/// cloud serves only provider-sourced sports data.
+// Wire types returned by the Worker (already camelCase JSON). Read-only — the
+// cloud serves only provider-sourced sports data.
 
-struct TeamDTO: Decodable, Identifiable {
+// TeamDTO and StandingDTO are Codable so the league-data cache can persist them
+// to disk (see DiskCache) — that's what makes browsing serve cached data and
+// only the ad-gated refresh hit the network.
+struct TeamDTO: Codable, Identifiable {
     let id: String
     let externalId: Int
     let name: String
@@ -25,7 +28,7 @@ struct FixtureDTO: Decodable, Identifiable {
     let updatedAt: String
 }
 
-struct StandingDTO: Decodable, Identifiable {
+struct StandingDTO: Codable, Identifiable {
     let teamId: Int
     let position: Int
     let played: Int

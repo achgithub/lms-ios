@@ -11,6 +11,7 @@ struct ScoresView: View {
     @State private var teamsById: [Int: TeamDTO] = [:]
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var lastRefreshed: Date?
 
     // Search / filter
     @State private var selectedLeagueIds: Set<String> = []
@@ -99,7 +100,7 @@ struct ScoresView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { AdGate.run { Task { await load() } } } label: {
+                    Button { AdGate.run { Task { await load(force: true) } } } label: {
                         Image(systemName: "arrow.clockwise")
                     }
                     .disabled(isLoading)
@@ -123,29 +124,68 @@ struct ScoresView: View {
             // them is instant and never re-hits the network.
             .task(id: enabled.leagues.map(\.id)) {
                 if selectedLeagueIds.isEmpty { selectedLeagueIds = Set(enabled.leagues.map(\.id)) }
-                await load()
+                await load(force: false)
             }
+            .safeAreaInset(edge: .bottom) { footer }
         }
     }
 
-    private func load() async {
+    // Shared footer with Standings: last-refreshed time + the non-affiliation
+    // disclaimer, same look and feel.
+    private var footer: some View {
+        VStack(spacing: 4) {
+            if let lastRefreshed {
+                Text("Updated \(lastRefreshed.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            // Single localized string key — can't wrap without changing the key.
+            // swiftlint:disable:next line_length
+            Text("Not affiliated with, licensed by or endorsed by any football club, league or federation. An independent tool — team names and fixtures are factual data shown for reference only.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+        }
+        .padding(.bottom, 6)
+        .background(.bar)
+    }
+
+    /// Loads scores for every enabled league. `force` (the ad-gated refresh)
+    /// always hits the network and overwrites the per-league cache; otherwise each
+    /// league is served from its cache, fetching only the first time (empty cache).
+    /// This is what stops a relaunch from being a free refresh.
+    private func load(force: Bool) async {
         isLoading = true
         errorMessage = nil
         var allItems: [ScoreItem] = []
         var allTeams: [Int: TeamDTO] = [:]
+        var dates: [Date] = []
         do {
             for league in enabled.leagues {
-                let client = league.client
-                async let scoresReq = client.scores()
-                async let fixturesReq = client.fixtures()
-                async let teamsReq = client.teams()
-                let (scores, fixtures, teams) = try await (scoresReq, fixturesReq, teamsReq)
-                let metaById = Dictionary(fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-                allItems += scores.map { ScoreItem(score: $0, fixture: metaById[$0.id], leagueId: league.id) }
-                for team in teams { allTeams[team.externalId] = team }
+                let key = LeagueDataCache.scoresKey(league.id)
+                if !force, let cached = LeagueDataCache.load(LeagueDataCache.Scores.self, key: key) {
+                    allItems += cached.items
+                    for team in cached.teams { allTeams[team.externalId] = team }
+                    dates.append(cached.date)
+                } else {
+                    let client = league.client
+                    async let scoresReq = client.scores()
+                    async let fixturesReq = client.fixtures()
+                    async let teamsReq = client.teams()
+                    let (scores, fixtures, teams) = try await (scoresReq, fixturesReq, teamsReq)
+                    let metaById = Dictionary(fixtures.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                    let leagueItems = scores.map { ScoreItem(score: $0, fixture: metaById[$0.id], leagueId: league.id) }
+                    allItems += leagueItems
+                    for team in teams { allTeams[team.externalId] = team }
+                    let now = Date()
+                    dates.append(now)
+                    LeagueDataCache.save(LeagueDataCache.Scores(date: now, items: leagueItems, teams: teams), key: key)
+                }
             }
             items = allItems
             teamsById = allTeams
+            lastRefreshed = dates.max()
         } catch {
             errorMessage = error.localizedDescription
             items = []
@@ -272,7 +312,7 @@ private struct ScoresSearchSheet: View {
 /// A live score (from /scores) joined with its fixture metadata (kickoff,
 /// matchday from /fixtures), tagged with its league so multi-league views can
 /// filter by league. The fixture may be missing if the two feeds drift.
-struct ScoreItem: Identifiable {
+struct ScoreItem: Identifiable, Codable {
     let id: Int
     let leagueId: String
     let kickoff: Date?

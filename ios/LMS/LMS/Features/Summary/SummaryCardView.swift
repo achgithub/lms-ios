@@ -259,7 +259,7 @@ struct SummaryCardView: View {
             }
             .font(.system(size: 14, weight: .semibold))
 
-            Text("\(SummaryData.watermarkDomain)  •  \(data.appName)")
+            Text(data.appName)
                 .font(.system(size: 11))
                 .foregroundStyle(textSecondary)
         }
@@ -282,11 +282,11 @@ private extension SummaryData {
             timestampLabel: type == .picks ? "Picks locked · Sat 16 Aug · 12:30"
                                             : "Full time · Sat 16 Aug · 17:00",
             pickGroups: [
-                SummaryTeamGroup(teamId: 1, tla: "ARS", teamName: "Arsenal",
+                SummaryTeamGroup(teamId: 1, teamName: "Arsenal",
                                  playerNames: ["Andy", "Dave", "Pete", "Sarah"], includesManager: true),
-                SummaryTeamGroup(teamId: 2, tla: "MUN", teamName: "Man Utd",
+                SummaryTeamGroup(teamId: 2, teamName: "Man Utd",
                                  playerNames: ["Chris", "Jake", "Lucy", "Mo", "Tom"], includesManager: false),
-                SummaryTeamGroup(teamId: 3, tla: "CHE", teamName: "Chelsea",
+                SummaryTeamGroup(teamId: 3, teamName: "Chelsea",
                                  playerNames: ["Nina"], includesManager: false)
             ],
             survivors: ["Andy", "Dave", "Jake", "Lucy", "Nina", "Pete", "Sarah", "Tom"],
@@ -296,8 +296,8 @@ private extension SummaryData {
             outcome: { if case .outcome(let e) = type { return e } else { return nil } }(),
             outcomePlayers: mode == .anonymous ? ["Player 1", "Player 4"] : ["Andy", "Nina"],
             fixtures: [
-                SummaryFixture(id: 1, homeTla: "ARS", awayTla: "CHE", homeName: "Arsenal", awayName: "Chelsea", kickoff: .now),
-                SummaryFixture(id: 2, homeTla: "MUN", awayTla: "LIV", homeName: "Man Utd", awayName: "Liverpool", kickoff: .now.addingTimeInterval(7200))
+                SummaryFixture(id: 1, homeName: "Arsenal", awayName: "Chelsea", kickoff: .now),
+                SummaryFixture(id: 2, homeName: "Man Utd", awayName: "Liverpool", kickoff: .now.addingTimeInterval(7200))
             ],
             activeCount: 8,
             eliminatedCount: 2
