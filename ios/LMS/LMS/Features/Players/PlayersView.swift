@@ -47,6 +47,8 @@ struct PlayersView: View {
                     Button { importing = true } label: {
                         Label("Import CSV", systemImage: "doc.text")
                     }
+                    // Single localized string key — can't wrap without changing the key.
+                    // swiftlint:disable:next line_length
                     Text("One name per row. Add a group with `Name, Group`. Rows without one go to the selected import group above. `Name, Email` still works (email ignored).")
                         .font(.caption).foregroundStyle(.secondary)
                 }

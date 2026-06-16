@@ -17,6 +17,8 @@ struct ManagerOnboardingView: View {
         NavigationStack {
             Form {
                 Section {
+                    // Single localized string key — can't wrap without changing the key.
+                    // swiftlint:disable:next line_length
                     Text("What's your name? You'll be added to games you create, and your pick is always shown on shared summary cards — even in anonymous mode — so it's fair on the other players.")
                         .font(.subheadline)
                 }
