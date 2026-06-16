@@ -26,7 +26,6 @@ interface FDTeam {
   name: string;
   shortName?: string | null;
   tla?: string | null;
-  crest?: string | null;
 }
 interface FDMatch {
   id: number;
@@ -87,7 +86,6 @@ export class FootballDataProvider implements Provider {
       name: t.name,
       shortName: t.shortName ?? null,
       tla: t.tla ?? null,
-      crestUrl: t.crest ?? null,
       leagueId: this.leagueId,
     }));
   }

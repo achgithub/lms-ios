@@ -19,7 +19,6 @@ export interface Team {
   name: string;
   shortName: string | null;
   tla: string | null;
-  crestUrl: string | null;
   leagueId: string;
 }
 

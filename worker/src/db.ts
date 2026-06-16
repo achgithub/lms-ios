@@ -10,7 +10,6 @@ interface TeamRow {
   name: string;
   short_name: string | null;
   tla: string | null;
-  crest_url: string | null;
   league_id: string;
 }
 interface FixtureRow {
@@ -46,7 +45,6 @@ function toTeam(r: TeamRow): Team {
     name: r.name,
     shortName: r.short_name,
     tla: r.tla,
-    crestUrl: r.crest_url,
     leagueId: r.league_id,
   };
 }
@@ -133,16 +131,15 @@ export async function getTeams(db: D1Database): Promise<Team[]> {
 export async function upsertTeams(db: D1Database, teams: Team[]): Promise<void> {
   if (teams.length === 0) return;
   const stmt = db.prepare(
-    `INSERT INTO teams (id, external_id, name, short_name, tla, crest_url, league_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO teams (id, external_id, name, short_name, tla, league_id)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(external_id) DO UPDATE SET
        name = excluded.name, short_name = excluded.short_name,
-       tla = excluded.tla, crest_url = excluded.crest_url,
-       league_id = excluded.league_id`,
+       tla = excluded.tla, league_id = excluded.league_id`,
   );
   await db.batch(
     teams.map((t) =>
-      stmt.bind(t.id, t.externalId, t.name, t.shortName, t.tla, t.crestUrl, t.leagueId),
+      stmt.bind(t.id, t.externalId, t.name, t.shortName, t.tla, t.leagueId),
     ),
   );
 }

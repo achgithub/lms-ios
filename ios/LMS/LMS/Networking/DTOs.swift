@@ -9,7 +9,6 @@ struct TeamDTO: Decodable, Identifiable {
     let name: String
     let shortName: String?
     let tla: String?
-    let crestUrl: String?
     let leagueId: String
 }
 

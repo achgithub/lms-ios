@@ -10,15 +10,14 @@ PRAGMA foreign_keys = ON;
 
 -- ── Teams ────────────────────────────────────────────────────────────────
 -- One row per club in this league. `external_id` is the provider's team id.
--- `crest_url` is stored as provided but the app renders bespoke colour tiles
--- (§15) and does not require it.
+-- Only text data is stored — the app renders bespoke colour tiles (§15), so the
+-- provider's crest/logo image URL is deliberately NOT persisted or served.
 CREATE TABLE IF NOT EXISTS teams (
   id          TEXT PRIMARY KEY,           -- internal/stable id (provider id as text)
   external_id INTEGER NOT NULL UNIQUE,    -- football-data.org team id
   name        TEXT NOT NULL,
   short_name  TEXT,                       -- e.g. "Arsenal"
   tla         TEXT,                       -- provider 3-letter code, e.g. "ARS"
-  crest_url   TEXT,
   league_id   TEXT NOT NULL               -- LEAGUE_ID this Worker serves (e.g. "PL")
 );
 
