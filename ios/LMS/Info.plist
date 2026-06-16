@@ -12,5 +12,10 @@
 	     this key the ATT prompt cannot appear and ads stay non-personalized. -->
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This lets us show you more relevant ads. You can keep using the app whichever you choose.</string>
+	<!-- Export compliance: the app only uses standard encryption (HTTPS). Setting
+	     this avoids the "missing compliance" prompt on every TestFlight upload.
+	     Revisit if you add non-exempt cryptography. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
