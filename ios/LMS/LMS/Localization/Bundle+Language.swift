@@ -53,6 +53,8 @@ extension Bundle {
 /// `String(localized:)` for any non-`Text` string (enum labels, share-card copy,
 /// alerts): plain `String(localized:)` ignores the override and always uses the
 /// device language. SwiftUI `Text("…")` is fine as-is (it respects the swizzle).
+// Capitalized by intent — mirrors `NSLocalizedString` as a string-producing helper.
+// swiftlint:disable:next identifier_name
 func AppString(_ key: String.LocalizationValue) -> String {
     String(localized: key, bundle: Bundle.appLanguageBundle)
 }

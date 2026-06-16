@@ -1,0 +1,68 @@
+# SwiftLint config for the LMS app. Run automatically on build via the
+# SwiftLintBuildToolPlugin (pinned SPM plugin — no global install).
+# Tuned to this codebase: concise SwiftUI, short local names (n, f, a, id),
+# and doc comments that run long.
+
+only_rules: ~   # use the default rule set plus the opt-ins below
+
+disabled_rules:
+  - todo                      # the codebase intentionally keeps TODO/FIXME notes
+  - trailing_comma            # multiline literals here use trailing commas freely
+  - multiple_closures_with_trailing_closure  # common, readable in SwiftUI
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - first_where
+  - last_where
+  - contains_over_filter_count
+  - contains_over_first_not_nil
+  - sorted_first_last
+  - toggle_bool
+  - unused_import
+  - redundant_nil_coalescing
+  - closure_spacing
+  - operator_usage_whitespace
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+identifier_name:
+  min_length:
+    warning: 1   # short locals (n, f, a, id, b) are idiomatic here
+  max_length:
+    warning: 50
+  allowed_symbols: ["_"]
+
+type_name:
+  max_length:
+    warning: 50
+
+function_body_length:
+  warning: 80
+  error: 150
+
+type_body_length:
+  warning: 350
+  error: 500
+
+file_length:
+  warning: 500
+  error: 800
+  ignore_comment_only_lines: true
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+nesting:
+  type_level: 2
+
+# Localizable.xcstrings is generated/curated data, not Swift; nothing to lint.
+excluded:
+  - "**/.build"
+  - "**/Build"
+  - DerivedData
