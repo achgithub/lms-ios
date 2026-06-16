@@ -216,8 +216,8 @@ struct SummaryData {
 
     private static func timestampLabel(for type: SummaryType, round: Round) -> String {
         let formatter = DateFormatter()
-        // Locale-aware so the weekday/month read in the user's language.
-        formatter.locale = .current
+        // Locale-aware so the weekday/month read in the selected in-app language.
+        formatter.locale = Bundle.appLocale
         formatter.setLocalizedDateFormatFromTemplate("EEE d MMM HH:mm")
         switch type {
         case .fixtures: return AppString("Picks due · \(formatter.string(from: round.deadline))")

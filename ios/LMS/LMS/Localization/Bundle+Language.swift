@@ -29,6 +29,11 @@ extension Bundle {
     /// thread (language changes); read anywhere.
     nonisolated(unsafe) private(set) static var appLanguageBundle: Bundle = .main
 
+    /// The locale matching the selected language, for date/number formatting and
+    /// for `\.locale` when rendering off the main view tree (e.g. the share-card
+    /// `ImageRenderer`, which doesn't inherit the app root's locale).
+    nonisolated(unsafe) private(set) static var appLocale: Locale = .autoupdatingCurrent
+
     /// Point `Bundle.main` at the `.lproj` for `code` (e.g. "es"), or pass `nil`
     /// to fall back to the device language. Safe to call repeatedly.
     static func setAppLanguage(_ code: String?) {
@@ -40,6 +45,7 @@ extension Bundle {
         let path = code.flatMap { Bundle.main.path(forResource: $0, ofType: "lproj") }
         objc_setAssociatedObject(Bundle.main, &languageBundleKey, path, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         appLanguageBundle = path.flatMap(Bundle.init(path:)) ?? .main
+        appLocale = code.map { Locale(identifier: $0) } ?? .autoupdatingCurrent
     }
 }
 

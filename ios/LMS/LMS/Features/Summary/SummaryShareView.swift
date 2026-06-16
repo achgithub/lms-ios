@@ -80,7 +80,10 @@ struct SummaryShareView: View {
         let managerId = game.players.first(where: { $0.isManager })?.id
         let data = SummaryData.make(type: type, game: game, round: round, teamsById: teamsById,
                                     roundFixtures: roundFixtures, managerPlayerId: managerId)
-        let renderer = ImageRenderer(content: SummaryCardView(data: data))
+        // ImageRenderer renders off the main view tree, so it doesn't inherit the
+        // app root's `\.locale`. Inject it so the card's `Text(LocalizedStringKey)`
+        // and date formatting follow the selected in-app language.
+        let renderer = ImageRenderer(content: SummaryCardView(data: data).environment(\.locale, Bundle.appLocale))
         renderer.scale = 3.0   // @3x — crisp in WhatsApp (spec §13b.4)
         if let image = renderer.uiImage {
             rendered = image
