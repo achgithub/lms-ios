@@ -33,7 +33,15 @@ struct SummaryCardView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            TeamTile(tla: nil, fallbackAbbrev: "LMS", size: .large)
+            // App brand mark (not a club) — a clean accent badge.
+            RoundedRectangle(cornerRadius: 12)
+                .fill(accent)
+                .frame(width: 64, height: 64)
+                .overlay(
+                    Text("LMS")
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(bg)
+                )
             VStack(alignment: .leading, spacing: 2) {
                 Text(data.gameName)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -89,15 +97,13 @@ struct SummaryCardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(data.fixtures) { fixture in
                     HStack(spacing: 8) {
-                        TeamTile(tla: fixture.homeTla, fallbackAbbrev: "?", size: .small)
                         Text(fixture.homeName)
                             .font(.system(size: 15, weight: .semibold)).foregroundStyle(textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .trailing).lineLimit(1)
                         Text("v").font(.system(size: 13)).foregroundStyle(textSecondary)
                         Text(fixture.awayName)
                             .font(.system(size: 15, weight: .semibold)).foregroundStyle(textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .trailing).lineLimit(1)
-                        TeamTile(tla: fixture.awayTla, fallbackAbbrev: "?", size: .small)
+                            .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
                         if let kickoff = fixture.kickoff {
                             Text(kickoff, format: .dateTime.weekday(.abbreviated).hour().minute())
                                 .font(.system(size: 11)).foregroundStyle(textSecondary)
@@ -138,7 +144,6 @@ struct SummaryCardView: View {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(data.pickGroups) { group in
                     HStack(alignment: .top, spacing: 12) {
-                        TeamTile(tla: group.tla, fallbackAbbrev: "?", size: .medium)
                         if data.mode == .anonymous {
                             Text(group.teamName)
                                 .font(.system(size: 16, weight: .semibold)).foregroundStyle(textPrimary)

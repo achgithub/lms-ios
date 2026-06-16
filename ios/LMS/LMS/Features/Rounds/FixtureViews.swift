@@ -5,29 +5,24 @@ enum FixtureFormat {
     static func kickoffDate(_ string: String) -> Date? { iso.date(from: string) }
 }
 
-/// Compact fixture row: home tile/TLA · v · away TLA/tile, with the kick-off
+/// Compact, text-only fixture row: home name · v · away name, with the kick-off
 /// date + time and matchday stacked on the trailing edge (info only).
 struct FixtureLabel: View {
-    @Environment(\.horizontalSizeClass) private var sizeClass
     let fixture: FixtureDTO
     let teamsById: [Int: TeamDTO]
 
-    private var isPad: Bool { sizeClass == .regular }
-    private var tileSize: TileSize { isPad ? .medium : .small }
-    private var codeFont: Font { isPad ? .body.weight(.semibold) : .caption.weight(.semibold) }
-    private var codeWidth: CGFloat { isPad ? 48 : 36 }
-
-    private func tla(_ id: Int) -> String { teamsById[id]?.tla ?? "\(id)" }
+    private func name(_ id: Int) -> String {
+        teamsById[id]?.shortName ?? teamsById[id]?.tla ?? "Team \(id)"
+    }
     private var kickoff: Date? { FixtureFormat.kickoffDate(fixture.kickoff) }
 
     var body: some View {
         HStack(spacing: 8) {
-            TeamTile(tla: teamsById[fixture.homeTeamId]?.tla, size: tileSize)
-            Text(tla(fixture.homeTeamId)).font(codeFont).frame(width: codeWidth, alignment: .leading)
+            Text(name(fixture.homeTeamId))
+                .frame(maxWidth: .infinity, alignment: .trailing).lineLimit(1)
             Text("v").font(.caption2).foregroundStyle(.secondary)
-            Text(tla(fixture.awayTeamId)).font(codeFont).frame(width: codeWidth, alignment: .leading)
-            TeamTile(tla: teamsById[fixture.awayTeamId]?.tla, size: tileSize)
-            Spacer()
+            Text(name(fixture.awayTeamId))
+                .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
             VStack(alignment: .trailing, spacing: 1) {
                 if let kickoff {
                     Text(kickoff, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
@@ -39,6 +34,8 @@ struct FixtureLabel: View {
                     Text("MD \(matchday)").font(.caption2).foregroundStyle(.tertiary)
                 }
             }
+            .frame(width: 74, alignment: .trailing)
         }
+        .font(.callout)
     }
 }

@@ -170,7 +170,6 @@ private struct PlayerPickRow: View {
                 Text(player.name).foregroundStyle(.primary)
                 Spacer()
                 if let currentPick {
-                    TeamTile(tla: teamsById[currentPick.teamId]?.tla, size: .small)
                     Text(teamsById[currentPick.teamId]?.shortName ?? "Team \(currentPick.teamId)")
                         .foregroundStyle(.primary)
                 } else {
@@ -223,7 +222,6 @@ private struct TeamPickSheet: View {
                             onSelect(team.id)
                         } label: {
                             HStack(spacing: 10) {
-                                TeamTile(tla: teamsById[team.id]?.tla, size: .small)
                                 Text(team.name).foregroundStyle(.primary)
                                 Spacer()
                                 if team.id == currentTeamId {
