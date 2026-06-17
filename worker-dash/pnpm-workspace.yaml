@@ -1,0 +1,7 @@
+# Build-script allow-list (pnpm 11). Only wrangler's bundler/runtime native
+# binaries are approved to run postinstall, into project-local node_modules.
+# sharp is not needed by this Worker, so it stays unbuilt.
+allowBuilds:
+  esbuild: true
+  workerd: true
+  sharp: false

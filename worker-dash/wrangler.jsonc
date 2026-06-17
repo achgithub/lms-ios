@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lms-dash-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-14",
+
+  "routes": [{ "pattern": "dash.sportsmanager.site", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 }
+  },
+
+  // Read-only bindings to all three league databases and KV caches (same IDs, no new resources).
+  "d1_databases": [
+    { "binding": "PL_DB",  "database_name": "lms-pl-db",  "database_id": "22c5f7a2-aed6-4bc4-8769-eb2f6bcb66f8" },
+    { "binding": "ELC_DB", "database_name": "lms-elc-db", "database_id": "0da1fc55-3c64-436d-9c54-ec8da5a9ffae" },
+    { "binding": "PD_DB",  "database_name": "lms-pd-db",  "database_id": "05216011-43fe-4825-9d6a-90a798a6e042" }
+  ],
+  "kv_namespaces": [
+    { "binding": "PL_KV",  "id": "229d93724a9840bba6d196d666a61545" },
+    { "binding": "ELC_KV", "id": "dd5e45efe9764e3eabdad08ba3538f85" },
+    { "binding": "PD_KV",  "id": "91ab4ad762ff4d04852ed1073588f766" }
+  ]
+}

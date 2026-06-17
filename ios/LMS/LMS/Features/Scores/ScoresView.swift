@@ -269,6 +269,9 @@ struct ScoresView: View {
             items = []
         }
         // Re-arm the throttle from the now-current caches (greyed if all fresh).
+        // Sync `now` first so the initial countdown render is accurate rather than
+        // showing stale view-creation time (which inflates the display by ~load duration).
+        now = Date()
         freshUntil = scoresThrottleUntil()
         isLoading = false
     }
