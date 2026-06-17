@@ -5,7 +5,7 @@
 	<!-- App Attest environment. Driven by the APP_ATTEST_ENVIRONMENT build setting
 	     so Debug/devicectl builds attest in "development" and Release (App Store/
 	     TestFlight) in "production" — matching the Worker's APP_ATTEST_ENV. -->
-	<key>com.apple.developer.app-attest.environment</key>
+	<key>com.apple.developer.devicecheck.appattest-environment</key>
 	<string>$(APP_ATTEST_ENVIRONMENT)</string>
 </dict>
 </plist>

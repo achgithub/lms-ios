@@ -40,7 +40,7 @@ unit-tested (challenge HMAC), and bundles for workerd (581 KiB / 104 KiB gzip).
   → persist keyId per host; per request fetch/cache a challenge + generate an
   assertion. Attaches `X-Attest-Key-Id/Challenge/Assertion`.
 - `APIClient.get()` switched to `URLRequest` and attaches those headers.
-- `LMS.entitlements` — `com.apple.developer.app-attest.environment` =
+- `LMS.entitlements` — `com.apple.developer.devicecheck.appattest-environment` =
   `$(APP_ATTEST_ENVIRONMENT)`; pbxproj sets it `development` (Debug) / `production`
   (Release), matching the Worker's `APP_ATTEST_ENV`. `CODE_SIGN_ENTITLEMENTS` wired
   on both app configs.
@@ -100,8 +100,8 @@ verifies the HMAC + freshness.
 ### App Attest requires a paid Apple Developer Program account
 
 It cannot run on a free personal Apple ID team — the "App Attest" App ID
-capability and the `com.apple.developer.app-attest.environment` entitlement are not
-available to personal teams (same restriction class as Push/iCloud). Verified
+capability and the `com.apple.developer.devicecheck.appattest-environment` entitlement
+are not available to personal teams (same restriction class as Push/iCloud). Verified
 against live Apple docs/forums 2026-06-17.
 
 ### Team ID + bundle are configurable, not hardcoded
