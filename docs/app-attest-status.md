@@ -33,8 +33,24 @@ unit-tested (challenge HMAC), and bundles for workerd (581 KiB / 104 KiB gzip).
 > routes because `ATTEST_CHALLENGE_KEY` is unset. Deploy only once the app side
 > ships and is verified, in the coordinated go-live step below.
 
-**App side — NOT built (Phase B).** Needs the App Attest capability enabled on
-the App ID + a real device. See build plan below.
+**App side — BUILT (2026-06-17), compiles; on-device test pending.**
+- `ios/LMS/LMS/Networking/AppAttest.swift` — `AppAttestService` actor. Per-host
+  Secure-Enclave keys (each league Worker has its own challenge secret + device
+  store): generate key → attest against the host's challenge → `POST /attest/register`
+  → persist keyId per host; per request fetch/cache a challenge + generate an
+  assertion. Attaches `X-Attest-Key-Id/Challenge/Assertion`.
+- `APIClient.get()` switched to `URLRequest` and attaches those headers.
+- `LMS.entitlements` — `com.apple.developer.app-attest.environment` =
+  `$(APP_ATTEST_ENVIRONMENT)`; pbxproj sets it `development` (Debug) / `production`
+  (Release), matching the Worker's `APP_ATTEST_ENV`. `CODE_SIGN_ENTITLEMENTS` wired
+  on both app configs.
+- **Bypass = `DCAppAttestService.isSupported`** (false on Simulator), NOT `#if DEBUG`
+  — a real device (incl. Debug builds) performs real attestation, so no free pass is
+  compiled in. Best-effort: any failure → no headers → the Worker decides (keeps the
+  app working pre-enforcement, never hard-blocks the UI).
+- ✅ Compiles (`xcodebuild` Simulator, signing off). **Still needs:** App Attest
+  capability enabled on the `com.sportsmanager.LMS` App ID in the Developer portal,
+  then a real-device run to verify enrolment + assertion end-to-end.
 
 ### Go-live sequence (when app side is ready)
 1. `wrangler secret put ATTEST_CHALLENGE_KEY --env pl` (and elc/pd) — random 32+ byte value.

@@ -37,7 +37,14 @@ actor APIClient {
 
     private func get<T: Decodable>(_ path: String) async throws -> T {
         guard let url = URL(string: base.absoluteString + path) else { throw APIError.badURL }
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        // App Attest: prove this is the genuine app so the Worker serves the
+        // licensed feed. Best-effort — no headers on Simulator / pre-enrolment,
+        // and the Worker decides whether to accept (see AppAttestService).
+        for (field, value) in await AppAttestService.shared.authorizationHeaders(for: base) {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.badStatus(-1) }
         guard (200..<300).contains(http.statusCode) else { throw APIError.badStatus(http.statusCode) }
         return try decoder.decode(T.self, from: data)
