@@ -35,13 +35,24 @@ struct OpenRoundView: View {
 
     private var allFixtures: [FixtureDTO] { data?.fixtures ?? [] }
 
+    /// We only ever show the schedule four weeks ahead — a hard forward horizon.
+    /// Applied regardless of the date filter (and the date picker can't reach past
+    /// it), so a round is always opened on fixtures inside the window.
+    private static let horizon: TimeInterval = 28 * 24 * 3600
+    private var horizonEnd: Date { Date().addingTimeInterval(Self.horizon) }
+    private func withinHorizon(_ f: FixtureDTO) -> Bool {
+        guard let k = FixtureFormat.kickoffDate(f.kickoff) else { return true }
+        return k <= horizonEnd
+    }
+
     /// The league a fixture belongs to (via its home team's league).
     private func leagueId(of f: FixtureDTO) -> String? { data?.leagueIdByTeam[f.homeTeamId] }
 
     /// Fixtures after every active filter, sorted by kickoff.
     private var visibleFixtures: [FixtureDTO] {
         allFixtures.filter { f in
-            (leagueFilter == nil || leagueId(of: f) == leagueFilter)
+            withinHorizon(f)
+                && (leagueFilter == nil || leagueId(of: f) == leagueFilter)
                 && (!unplayedOnly || Self.isUnplayed(f))
                 && (!dateFilterOn || dateInRange(f))
         }
@@ -97,8 +108,8 @@ struct OpenRoundView: View {
                 Toggle("Unplayed only", isOn: $unplayedOnly)
                 Toggle("Filter by date", isOn: $dateFilterOn.animation())
                 if dateFilterOn {
-                    DatePicker("From", selection: $dateFrom, displayedComponents: .date)
-                    DatePicker("To", selection: $dateTo, in: dateFrom..., displayedComponents: .date)
+                    DatePicker("From", selection: $dateFrom, in: ...horizonEnd, displayedComponents: .date)
+                    DatePicker("To", selection: $dateTo, in: dateFrom...horizonEnd, displayedComponents: .date)
                 }
             }
 
