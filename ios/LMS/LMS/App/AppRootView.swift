@@ -9,10 +9,14 @@ struct AppRootView: View {
     /// re-reads its localized strings) and updates `\.locale` for date/number
     /// and plural formatting.
     @State private var localization = LocalizationManager.shared
+    /// Held here (above the language `.id` re-key below) so the chosen tab is
+    /// preserved when changing language recreates the tab view — otherwise it'd
+    /// reset to Games. Stays on Settings while you switch languages.
+    @State private var selectedTab: RootTab = .games
 
     var body: some View {
         ZStack {
-            RootTabView(splashActive: showSplash)
+            RootTabView(splashActive: showSplash, selection: $selectedTab)
                 .environment(EnabledLeagues.shared)
 
             if showSplash {
