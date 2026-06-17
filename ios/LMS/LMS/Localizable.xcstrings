@@ -1156,6 +1156,76 @@
         }
       }
     },
+    "Assign Players": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spieler zuweisen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asignar jugadores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affecter des joueurs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assegna giocatori"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelers toewijzen"
+          }
+        }
+      }
+    },
+    "Assign players to the game": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spieler dem Spiel zuweisen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asigna jugadores a la partida"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affecter des joueurs à la partie"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assegna i giocatori alla partita"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wijs spelers toe aan het spel"
+          }
+        }
+      }
+    },
     "Auto-Assign": {
       "extractionState": "manual",
       "localizations": {
@@ -2836,6 +2906,76 @@
         }
       }
     },
+    "Edit Fixtures": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiele bearbeiten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar partidos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier les matchs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifica partite"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wedstrijden bewerken"
+          }
+        }
+      }
+    },
+    "Edit fixtures?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiele bearbeiten?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Editar partidos?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier les matchs ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modificare le partite?"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wedstrijden bewerken?"
+          }
+        }
+      }
+    },
     "Eliminated": {
       "extractionState": "manual",
       "localizations": {
@@ -3217,6 +3357,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "Iedereen die nog meedeed, viel deze ronde af — geen duidelijke winnaar. Hoe los je dit op?"
+          }
+        }
+      }
+    },
+    "Everyone still in went out together — no clear winner. Choose how it ends: split the win, roll the week for the tied players, or bring everyone back in.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle noch im Spiel sind gleichzeitig ausgeschieden – kein klarer Sieger. Wähle, wie es endet: den Sieg teilen, die Woche für die punktgleichen Spieler wiederholen oder alle zurückholen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos los que seguían dentro quedaron eliminados a la vez: no hay un ganador claro. Elige cómo termina: repartir la victoria, repetir la jornada para los empatados o readmitir a todos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tous les joueurs encore en lice ont été éliminés en même temps — pas de vainqueur net. Choisis l'issue : partager la victoire, rejouer la semaine pour les ex æquo, ou réintégrer tout le monde."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutti i giocatori ancora in gioco sono stati eliminati insieme: nessun vincitore chiaro. Scegli come finisce: dividere la vittoria, ripetere la giornata per i pari merito o riammettere tutti."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iedereen die nog meedeed, ging tegelijk uit — geen duidelijke winnaar. Kies hoe het eindigt: de winst delen, de week opnieuw spelen voor de gelijk geëindigde spelers, of iedereen terughalen."
           }
         }
       }
@@ -5881,6 +6056,41 @@
         }
       }
     },
+    "Open the next round": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Runde öffnen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir la siguiente ronda"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir la manche suivante"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri il turno successivo"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volgende ronde openen"
+          }
+        }
+      }
+    },
     "Outcome · Round %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -7246,6 +7456,41 @@
         }
       }
     },
+    "Resolve the round": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runde auflösen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolver la ronda"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résoudre la manche"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risolvi il turno"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ronde afhandelen"
+          }
+        }
+      }
+    },
     "Restore Purchases": {
       "extractionState": "manual",
       "localizations": {
@@ -8121,6 +8366,41 @@
         }
       }
     },
+    "Share Outcome Card": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ergebnis-Karte teilen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compartir tarjeta de resultado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager la carte du dénouement"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Condividi scheda esito"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uitkomstkaart delen"
+          }
+        }
+      }
+    },
     "Share Picks Card": {
       "extractionState": "manual",
       "localizations": {
@@ -8607,6 +8887,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nog in de race — kies opnieuw"
+          }
+        }
+      }
+    },
+    "Still waiting on players? You don't have to do this now — close the wizard and come back any time by swiping the game to the right. It picks up right here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartest du noch auf Spieler? Du musst das nicht jetzt machen – schließe den Assistenten und komm jederzeit zurück, indem du das Spiel nach rechts wischst. Er macht genau hier weiter."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Todavía esperas a algún jugador? No tienes que hacerlo ahora: cierra el asistente y vuelve cuando quieras deslizando la partida hacia la derecha. Continuará justo aquí."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu attends encore des joueurs ? Pas besoin de le faire maintenant — ferme l'assistant et reviens quand tu veux en faisant glisser la partie vers la droite. Il reprendra ici même."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stai ancora aspettando dei giocatori? Non devi farlo ora: chiudi la procedura guidata e torna quando vuoi scorrendo la partita verso destra. Riprenderà proprio da qui."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wacht je nog op spelers? Je hoeft dit nu niet te doen — sluit de wizard en kom op elk moment terug door het spel naar rechts te vegen. Hij gaat precies hier verder."
           }
         }
       }
@@ -9136,6 +9451,41 @@
         }
       }
     },
+    "That's a wrap!": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das war's!"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¡Listo!"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C'est terminé !"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "È tutto!"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dat was het!"
+          }
+        }
+      }
+    },
     "The %lld tied players carry forward and replay.": {
       "extractionState": "manual",
       "localizations": {
@@ -9202,6 +9552,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "De kaartafbeelding kon niet worden gemaakt."
+          }
+        }
+      }
+    },
+    "The game's done. Share the final result, and you're all set — start a new game whenever you like.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist beendet. Teile das Endergebnis – fertig. Starte ein neues Spiel, wann immer du möchtest."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La partida ha terminado. Comparte el resultado final y listo: empieza una nueva partida cuando quieras."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La partie est terminée. Partage le résultat final, et voilà — lance une nouvelle partie quand tu veux."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La partita è finita. Condividi il risultato finale e il gioco è fatto: inizia una nuova partita quando vuoi."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Het spel is afgelopen. Deel de einduitslag en je bent klaar — start wanneer je wilt een nieuw spel."
           }
         }
       }
@@ -9342,6 +9727,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hiermee wordt 1 spel permanent verwijderd en dit kan niet ongedaan worden gemaakt."
+          }
+        }
+      }
+    },
+    "This resets the round so you can reselect fixtures. Any picks already made are cleared. This can't be undone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dies setzt die Runde zurück, damit du die Spiele neu auswählen kannst. Bereits getroffene Tipps werden gelöscht. Das kann nicht rückgängig gemacht werden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto reinicia la ronda para que puedas volver a elegir los partidos. Las selecciones ya hechas se borran. Esto no se puede deshacer."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela réinitialise la manche pour que tu puisses resélectionner les matchs. Les choix déjà faits sont effacés. Action irréversible."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo azzera il turno così puoi riselezionare le partite. Le scelte già fatte vengono cancellate. L'operazione non può essere annullata."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dit zet de ronde terug zodat je de wedstrijden opnieuw kunt kiezen. Reeds gemaakte keuzes worden gewist. Dit kan niet ongedaan worden gemaakt."
           }
         }
       }
@@ -9832,6 +10252,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "Winnaars"
+          }
+        }
+      }
+    },
+    "Wizard": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistent"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asistente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procedura guidata"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wizard"
           }
         }
       }

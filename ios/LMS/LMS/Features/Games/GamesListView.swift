@@ -8,6 +8,8 @@ struct GamesListView: View {
     @Query(sort: \Game.createdAt, order: .reverse) private var games: [Game]
     @State private var showingNew = false
     @State private var showingWizard = false
+    /// The game whose ongoing wizard is open (launched by swiping a row right).
+    @State private var wizardGame: Game?
 
     var body: some View {
         NavigationStack {
@@ -26,6 +28,14 @@ struct GamesListView: View {
                     List {
                         ForEach(games) { game in
                             NavigationLink(value: game) { GameCard(game: game) }
+                                // Swipe a game right to (re)open its guided wizard —
+                                // it resumes at the game's current phase and loops on.
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    Button { wizardGame = game } label: {
+                                        Label("Wizard", systemImage: "wand.and.stars")
+                                    }
+                                    .tint(.purple)
+                                }
                         }
                         .onDelete(perform: delete)
                     }
@@ -42,7 +52,8 @@ struct GamesListView: View {
             }
             .navigationDestination(for: Game.self) { GameDetailView(game: $0) }
             .sheet(isPresented: $showingNew) { NewGameView() }
-            .fullScreenCover(isPresented: $showingWizard) { FirstRunWizardView() }
+            .fullScreenCover(isPresented: $showingWizard) { GameWizardView() }
+            .fullScreenCover(item: $wizardGame) { GameWizardView(game: $0) }
         }
     }
 

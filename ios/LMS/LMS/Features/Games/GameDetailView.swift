@@ -24,6 +24,8 @@ struct GameDetailView: View {
     @State private var autoOpenType: RoundType?
     /// A player pending drop-out removal (awaiting the confirmation dialog).
     @State private var pendingRemovePlayer: Player?
+    /// Set while awaiting confirmation to reset the open round (wrong fixtures).
+    @State private var pendingEditFixtures = false
 
     private var sortedPlayers: [Player] {
         game.players.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -125,6 +127,27 @@ struct GameDetailView: View {
         } message: { player in
             Text("\(player.name) is removed from the game and their picks deleted. This can't be undone.")
         }
+        .confirmationDialog(
+            "Edit fixtures?",
+            isPresented: $pendingEditFixtures,
+            titleVisibility: .visible
+        ) {
+            Button("Edit Fixtures", role: .destructive) { resetOpenRound() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This resets the round so you can reselect fixtures. Any picks already made are cleared. This can't be undone.")
+        }
+    }
+
+    /// Reset the open round (wrong fixtures): delete it — cascading its picks away —
+    /// then reopen a fresh round of the same type so the manager reselects fixtures.
+    /// The round number is reused (it's `max + 1` once the current one is gone).
+    private func resetOpenRound() {
+        guard let round = openRound else { return }
+        let type = round.roundType
+        game.rounds.removeAll { $0.id == round.id }
+        context.delete(round)
+        autoOpenType = type
     }
 
     /// Remove a player who's dropped out (cascade deletes their picks).
@@ -184,6 +207,11 @@ struct GameDetailView: View {
                 // A rollover/playoff round follows a resolution — surface its card.
                 if round.roundType != .normal, let ending = game.lastOutcome {
                     shareCardButton("Share \(ending.headline) Card", .summaryOutcome, enabled: true)
+                }
+                // Escape hatch for a wrong fixture: reset the round and reselect.
+                // Confirmed (guards an accidental tap) — it clears any picks made.
+                Button(role: .destructive) { pendingEditFixtures = true } label: {
+                    Label("Edit Fixtures", systemImage: "pencil")
                 }
                 shareCardButton("Share Fixtures Card", .summaryFixtures, enabled: true)
                 Button { sheet = .picks } label: { Label("Enter Picks", systemImage: "checklist") }
