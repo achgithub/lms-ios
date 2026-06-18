@@ -211,10 +211,6 @@ struct OpenRoundView: View {
         do {
             let fresh = try await LeagueData.load(for: gameLeagues)
             data = fresh
-            // Preselect everything in the default date window (yesterday → +14 days
-            // of unplayed fixtures) — a sensible starting round the manager can trim.
-            selectedFixtureIds = Set(visibleFixtures.map(\.id))
-            syncDeadlineToSelection()
         } catch {
             errorMessage = error.localizedDescription
         }

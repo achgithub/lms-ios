@@ -1,5 +1,6 @@
-import SwiftUI
+import Combine
 import SwiftData
+import SwiftUI
 
 /// Enter per-fixture results (or pull them from the server) and close the round
 /// (§6.5). Closing computes eliminations; if everyone goes out together the tie
@@ -17,6 +18,20 @@ struct ResultsEntryView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var outcomes: [Int: FixtureOutcome] = [:]
+    @State private var lastPulled: Date?
+
+    // Refresh throttle — shared with Scores via the same 60s live-pull clock
+    // (see `LeagueDataCache.sharedLiveThrottleUntil`): this action is pulling
+    // live results, the same job as Scores, just via /fixtures instead of
+    // /scores. Without sharing the clock, a manager could pull here, then
+    // immediately pull again on the Scores tab (two independent cooldowns).
+    @State private var now = Date()
+    @State private var freshUntil: Date?
+    private var isThrottled: Bool { freshUntil.map { now < $0 } ?? false }
+
+    private func fixturesThrottleUntil() -> Date? {
+        LeagueDataCache.sharedLiveThrottleUntil(for: game.leagues.map(\.id))
+    }
 
     private var roundFixtures: [FixtureDTO] {
         guard let data else { return [] }
@@ -46,21 +61,52 @@ struct ResultsEntryView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
                     // Free users watch a rewarded ad to pull fresh results;
-                    // subscribers pull instantly (see AdGate).
+                    // subscribers pull instantly (see AdGate). Greyed while
+                    // throttled, matching Scores.
                     Button {
                         AdGate.run { Task { await pullFromServer() } }
                     } label: {
                         Label("Pull results from server", systemImage: "arrow.down.circle")
                     }
+                    .disabled(isLoading || isThrottled)
                 }
             }
+            // Only advance the clock while throttled, so we don't re-render every
+            // second once the button is live again (see Scores).
+            .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { tick in
+                if isThrottled { now = tick }
+            }
             .safeAreaInset(edge: .bottom) {
-                Button { close() } label: {
-                    Text("Close Round").frame(maxWidth: .infinity)
+                VStack(spacing: 4) {
+                    if let lastPulled {
+                        Text("Updated \(lastPulled.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if isThrottled, let freshUntil {
+                        let remaining = Duration.seconds(max(0, freshUntil.timeIntervalSince(now)))
+                        Text("Refresh available in \(remaining.formatted(.time(pattern: .minuteSecond)))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    // Independence / non-affiliation disclaimer, matching Scores.
+                    // swiftlint:disable:next line_length
+                    Text("Not affiliated with, licensed by or endorsed by any football club, league or federation. An independent tool — team names and fixtures are factual data shown for reference only.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+
+                    Button { close() } label: {
+                        Text("Close Round").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 8)
+                    .disabled(round.status == .closed || !allResultsSet)
                 }
-                .buttonStyle(.borderedProminent)
-                .padding()
-                .disabled(round.status == .closed || !allResultsSet)
+                .padding(.bottom, 6)
+                .padding(.horizontal)
+                .background(.bar)
             }
             .task { await load() }
         }
@@ -93,6 +139,9 @@ struct ResultsEntryView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+        // Re-arm the throttle from the now-current caches (greyed if all fresh).
+        now = Date()
+        freshUntil = fixturesThrottleUntil()
         isLoading = false
     }
 
@@ -101,7 +150,11 @@ struct ResultsEntryView: View {
         // was loaded when the sheet opened. `forceFixtures` bypasses the fixtures
         // TTL — the whole point of this gated action is fresh results. Falls back
         // to current data on failure.
-        if let fresh = try? await LeagueData.load(for: game.leagues, forceFixtures: true) { data = fresh }
+        if let fresh = try? await LeagueData.load(for: game.leagues, forceFixtures: true) {
+            data = fresh
+            lastPulled = Date()
+            for league in game.leagues { LeagueDataCache.recordLivePull(league.id) }
+        }
         for fixture in roundFixtures {
             if fixture.status == "POSTPONED" {
                 outcomes[fixture.id] = .postponed
@@ -109,6 +162,9 @@ struct ResultsEntryView: View {
                 outcomes[fixture.id] = outcome
             }
         }
+        // Re-arm the throttle from the now-current caches (greyed if all fresh).
+        now = Date()
+        freshUntil = fixturesThrottleUntil()
     }
 
     private func close() {

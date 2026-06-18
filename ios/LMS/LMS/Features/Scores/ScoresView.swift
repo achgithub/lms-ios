@@ -186,24 +186,13 @@ struct ScoresView: View {
     /// - any corrupt cache → recover with a **free** fetch (our bad data) — the bad
     ///   files have already been deleted by `read`;
     /// - otherwise (any stale / empty) → the normal ad-gated fetch.
-    /// The throttle deadline: the soonest moment a refresh could fetch something
-    /// newer. Returns `nil` (refresh available now) if any enabled league's scores
-    /// are stale, empty or corrupt — i.e. a refresh would do real work (an ad-gated
-    /// or free fetch). Only when *every* league is fresh do we throttle, until the
-    /// earliest-expiring cache crosses its TTL.
+    /// The throttle deadline comes from the shared live-pull clock (see
+    /// `LeagueDataCache.sharedLiveThrottleUntil`), not this screen's own cache —
+    /// Results entry's "Pull results from server" does the same job (via
+    /// /fixtures) and shares the same 60s cooldown, so pulling in one screen
+    /// also throttles the other.
     private func scoresThrottleUntil() -> Date? {
-        var earliest: Date?
-        for league in enabled.leagues {
-            switch LeagueDataCache.read(LeagueDataCache.Scores.self, key: LeagueDataCache.scoresKey(league.id)) {
-            case .hit(let cached):
-                guard LeagueDataCache.isFresh(cached.date, ttl: CacheTTL.scores) else { return nil }
-                let expiry = cached.date.addingTimeInterval(CacheTTL.scores)
-                earliest = earliest.map { min($0, expiry) } ?? expiry
-            case .empty, .corrupt:
-                return nil
-            }
-        }
-        return earliest
+        LeagueDataCache.sharedLiveThrottleUntil(for: enabled.leagues.map(\.id))
     }
 
     private func refresh() {
@@ -259,6 +248,7 @@ struct ScoresView: View {
                     let now = Date()
                     dates.append(now)
                     LeagueDataCache.save(LeagueDataCache.Scores(date: now, items: leagueItems, teams: teams), key: key)
+                    LeagueDataCache.recordLivePull(league.id)
                 }
             }
             items = allItems

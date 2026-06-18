@@ -59,6 +59,16 @@ enum LeagueDataCache {
         let items: [TeamDTO]
     }
 
+    /// Marks when a league's *live* match data (scores or results) was last
+    /// pulled from the Worker — shared by every screen that does that job
+    /// (Scores tab, Results entry's "Pull results from server"), even though
+    /// they hit different endpoints (/scores vs /fixtures). Without this each
+    /// screen had its own independent 60s clock, so a manager could pull twice
+    /// in quick succession by switching screens.
+    struct LivePull: Codable {
+        let date: Date
+    }
+
     /// Outcome of a cache read. Distinguishes "nothing cached yet" (normal first
     /// run) from "a file was there but unreadable" (corrupt write, or written by
     /// an older app version whose schema no longer decodes). Lets callers recover
@@ -118,4 +128,34 @@ enum LeagueDataCache {
     static func standingsKey(_ leagueId: String) -> String { "standings-\(leagueId)" }
     static func fixturesKey(_ leagueId: String) -> String { "fixtures-\(leagueId)" }
     static func teamsKey(_ leagueId: String) -> String { "teams-\(leagueId)" }
+    static func livePullKey(_ leagueId: String) -> String { "live-pull-\(leagueId)" }
+
+    /// The soonest moment a live-data pull (Scores tab or Results entry) could
+    /// fetch something newer for this league. `nil` if no pull has happened yet
+    /// or its 60s window has lapsed.
+    static func livePullThrottleUntil(_ leagueId: String) -> Date? {
+        guard case .hit(let pull) = read(LivePull.self, key: livePullKey(leagueId)),
+              isFresh(pull.date, ttl: CacheTTL.scores) else { return nil }
+        return pull.date.addingTimeInterval(CacheTTL.scores)
+    }
+
+    /// Record that a live-data pull just happened for this league (call after a
+    /// successful fetch from either Scores or Results entry).
+    static func recordLivePull(_ leagueId: String) {
+        save(LivePull(date: Date()), key: livePullKey(leagueId))
+    }
+
+    /// Shared cooldown across every screen that pulls live match data (Scores
+    /// tab, Results entry). `nil` (pull available now) if any league hasn't
+    /// been pulled yet or its window has lapsed; otherwise the earliest expiry
+    /// across the given leagues — matching how each screen previously computed
+    /// its own (now-shared) throttle.
+    static func sharedLiveThrottleUntil(for leagueIds: [String]) -> Date? {
+        var earliest: Date?
+        for id in leagueIds {
+            guard let expiry = livePullThrottleUntil(id) else { return nil }
+            earliest = earliest.map { min($0, expiry) } ?? expiry
+        }
+        return earliest
+    }
 }
