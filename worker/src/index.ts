@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import { getDemoClock } from "./demo";
 import { FootballDataProvider } from "./football";
-import { requireAttestation } from "./middleware/attest";
+// import { requireAttestation } from "./middleware/attest"; // see TODO below
 import { admin } from "./routes/admin";
 import { attest } from "./routes/attest";
 import { demo } from "./routes/demo";
@@ -33,14 +33,18 @@ app.route("/attest", attest);
 
 // Data routes — guarded by App Attest so only the genuine iOS app can reach the
 // licensed feed. /health and /admin (own ADMIN_TOKEN) are intentionally not guarded.
-app.use("/fixtures/*", requireAttestation);
-app.use("/scores/*", requireAttestation);
-app.use("/standings/*", requireAttestation);
-app.use("/teams/*", requireAttestation);
-app.use("/fixtures", requireAttestation);
-app.use("/scores", requireAttestation);
-app.use("/standings", requireAttestation);
-app.use("/teams", requireAttestation);
+// TEMPORARILY DISABLED (2026-06-18): go-live sequence (Developer-portal capability,
+// ATTEST_CHALLENGE_KEY secret, attest_devices schema, app re-registration) is not
+// complete yet — see docs/app-attest-status.md. Re-enable these 8 lines as step 4 of
+// that sequence, not before.
+// app.use("/fixtures/*", requireAttestation);
+// app.use("/scores/*", requireAttestation);
+// app.use("/standings/*", requireAttestation);
+// app.use("/teams/*", requireAttestation);
+// app.use("/fixtures", requireAttestation);
+// app.use("/scores", requireAttestation);
+// app.use("/standings", requireAttestation);
+// app.use("/teams", requireAttestation);
 
 app.route("/fixtures", fixtures);
 app.route("/scores", scores);

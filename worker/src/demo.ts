@@ -19,6 +19,14 @@ const DAY = 86_400_000;
 const HOUR = 3_600_000;
 export const PHASES: DemoPhase[] = ["scheduled", "live", "finished"];
 
+// The real football-data.org feed has no fractional seconds (e.g.
+// "2024-08-17T11:30:00Z"); the app's ISO8601DateFormatter is configured to
+// match that and silently fails to parse Date#toISOString()'s milliseconds.
+// Strip them so demo timestamps parse the same as real ones.
+function isoNoMs(ms: number): string {
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 export async function getDemoClock(kv: KVNamespace): Promise<DemoClock | null> {
   const raw = await kv.get(CLOCK_KEY);
   if (!raw) return null;
@@ -55,8 +63,8 @@ export function advanceClock(clock: DemoClock, maxMatchday: number): DemoClock {
  * Kickoffs are spaced ~weekly around "now" so deadlines/round-opening make sense.
  */
 export function applyDemoToFixtures(fixtures: Fixture[], clock: DemoClock, now = Date.now()): Fixture[] {
-  const nowISO = new Date(now).toISOString();
-  const weekly = (offsetDays: number) => new Date(now + offsetDays * DAY).toISOString();
+  const nowISO = isoNoMs(now);
+  const weekly = (offsetDays: number) => isoNoMs(now + offsetDays * DAY);
 
   return fixtures.map((f): Fixture => {
     const md = f.matchday ?? 0;
@@ -72,15 +80,15 @@ export function applyDemoToFixtures(fixtures: Fixture[], clock: DemoClock, now =
     switch (clock.phase) {
       case "scheduled":
         return {
-          ...f, status: "TIMED", kickoff: new Date(now + 2 * DAY).toISOString(),
+          ...f, status: "TIMED", kickoff: isoNoMs(now + 2 * DAY),
           homeScore: null, awayScore: null, winner: null, updatedAt: nowISO,
         };
       case "live":
         // Real scores shown as the "current" live score; winner undecided.
-        return { ...f, status: "IN_PLAY", kickoff: new Date(now - HOUR).toISOString(), winner: null, updatedAt: nowISO };
+        return { ...f, status: "IN_PLAY", kickoff: isoNoMs(now - HOUR), winner: null, updatedAt: nowISO };
       case "finished":
       default:
-        return { ...f, status: "FINISHED", kickoff: new Date(now - DAY).toISOString(), updatedAt: nowISO };
+        return { ...f, status: "FINISHED", kickoff: isoNoMs(now - DAY), updatedAt: nowISO };
     }
   });
 }
@@ -109,7 +117,7 @@ export function demoStandings(fixtures: Fixture[], teams: Team[], clock: DemoClo
     return md === clock.matchday && clock.phase === "finished";
   });
 
-  const nowISO = new Date(now).toISOString();
+  const nowISO = isoNoMs(now);
   const table = new Map<number, Standing>();
   const ensure = (id: number): Standing => {
     let row = table.get(id);
