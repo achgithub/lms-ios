@@ -91,7 +91,8 @@ final class PurchaseService {
 
     #if canImport(RevenueCat)
     private static func tier(from info: CustomerInfo) -> Tier {
-        if info.entitlements[Entitlements.entitlementPro]?.isActive == true { return .pro }
+        if info.entitlements[Entitlements.entitlementUnlimited]?.isActive == true { return .unlimited }
+        if info.entitlements[Entitlements.entitlementThreeLeague]?.isActive == true { return .threeLeague }
         if info.entitlements[Entitlements.entitlementNoAds]?.isActive == true { return .noAds }
         return .free
     }
@@ -99,12 +100,28 @@ final class PurchaseService {
     /// Maps a tier to its RevenueCat package. TODO: confirm the package/product
     /// identifiers in the RevenueCat dashboard. Convention until then: the current
     /// offering exposes a package whose identifier is the tier raw value
-    /// ("no_ads" / "pro").
+    /// ("no_ads" / "three_league" / "unlimited").
     private static func package(for tier: Tier, in offerings: Offerings) -> Package? {
         let packages = offerings.current?.availablePackages ?? []
         return packages.first { $0.identifier == tier.rawValue }
     }
     #endif
+
+    /// Localized price string for a tier's current package (e.g. "£2.49"), or
+    /// nil if RevenueCat isn't linked/configured or the package isn't found.
+    /// This is how regional pricing reaches the UI — the price is never
+    /// hardcoded in the app; it's whatever App Store Connect is showing the
+    /// user's actual storefront, read back via StoreKit/RevenueCat at runtime.
+    func localizedPrice(for tier: Tier) async -> String? {
+        #if canImport(RevenueCat)
+        guard isConfigured else { return nil }
+        guard let offerings = try? await Purchases.shared.offerings() else { return nil }
+        guard let package = Self.package(for: tier, in: offerings) else { return nil }
+        return package.storeProduct.localizedPriceString
+        #else
+        return nil
+        #endif
+    }
 }
 
 extension PurchaseService.PurchaseOutcome {

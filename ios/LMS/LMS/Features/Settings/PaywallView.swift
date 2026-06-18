@@ -12,8 +12,12 @@ struct PaywallView: View {
     /// The tier whose button is mid-flight (drives the spinner + disables input).
     @State private var working: Tier?
     @State private var alert: PurchaseAlertItem?
+    /// Localized price strings fetched from RevenueCat/StoreKit — never
+    /// hardcoded, so each user sees their own storefront's price (e.g. £2.49
+    /// in the UK, €2.99 in the Eurozone) without any region logic in the app.
+    @State private var prices: [Tier: String] = [:]
 
-    private let paidTiers: [Tier] = [.noAds, .pro]
+    private let paidTiers: [Tier] = [.noAds, .threeLeague, .unlimited]
 
     var body: some View {
         NavigationStack {
@@ -46,6 +50,15 @@ struct PaywallView: View {
             .alert(item: $alert) { a in
                 Alert(title: Text(a.title), message: Text(a.message), dismissButton: .default(Text("OK")))
             }
+            .task { await loadPrices() }
+        }
+    }
+
+    private func loadPrices() async {
+        for tier in paidTiers {
+            if let price = await PurchaseService.shared.localizedPrice(for: tier) {
+                prices[tier] = price
+            }
         }
     }
 
@@ -55,6 +68,9 @@ struct PaywallView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(tier.label).font(.headline)
+                if let price = prices[tier] {
+                    Text("· \(price)/mo").font(.subheadline).foregroundStyle(.secondary)
+                }
                 Spacer()
                 if isCurrent {
                     Text("Current").font(.caption).foregroundStyle(.secondary)

@@ -1,12 +1,14 @@
 import Foundation
 import Observation
 
-/// Subscription tiers (mirrors the darts app's TierKey / entitlement ids).
-/// RevenueCat entitlement identifiers MUST match the raw values `no_ads` / `pro`.
+/// Subscription tiers (see docs/pricing-model.md for the priced ladder).
+/// RevenueCat entitlement identifiers MUST match the raw values `no_ads` /
+/// `three_league` / `unlimited`.
 enum Tier: String, CaseIterable, Identifiable {
     case free
     case noAds = "no_ads"
-    case pro
+    case threeLeague = "three_league"
+    case unlimited
 
     var id: String { rawValue }
 
@@ -14,19 +16,21 @@ enum Tier: String, CaseIterable, Identifiable {
         switch self {
         case .free: return AppString("Free")
         case .noAds: return AppString("No Ads")
-        case .pro: return AppString("Pro")
+        case .threeLeague: return AppString("3 Leagues")
+        case .unlimited: return AppString("Unlimited")
         }
     }
 
     var detail: String {
         switch self {
         case .free: return AppString("Ad-supported · 1 league")
-        case .noAds: return AppString("Ads removed · up to 3 leagues")
-        case .pro: return AppString("Ads removed · all leagues + premium")
+        case .noAds: return AppString("Ads removed · 1 league")
+        case .threeLeague: return AppString("Ads removed · 3 leagues")
+        case .unlimited: return AppString("Ads removed · all leagues, today and as we add more")
         }
     }
 
-    /// Both paid tiers remove ads (spec §ads / free-vs-sub tiers).
+    /// All paid tiers remove ads (spec §ads / free-vs-sub tiers).
     var removesAds: Bool { self != .free }
 }
 
@@ -43,7 +47,8 @@ final class Entitlements {
 
     // RevenueCat entitlement identifiers (match the dashboard + Tier raw values).
     static let entitlementNoAds = Tier.noAds.rawValue
-    static let entitlementPro = Tier.pro.rawValue
+    static let entitlementThreeLeague = Tier.threeLeague.rawValue
+    static let entitlementUnlimited = Tier.unlimited.rawValue
 
     private static let devTierKey = "devTierOverride"
 
@@ -63,14 +68,15 @@ final class Entitlements {
     var shouldShowAds: Bool { !tier.removesAds }
 
     /// How many leagues the user may have enabled at once (ticked in Settings).
-    /// Free = 1, No Ads (middle) = up to 3, Pro = the whole catalogue. Capped at
-    /// the number of leagues that actually exist so a small catalogue never claims
-    /// more than it has. Change tier→count here only.
+    /// Free / No Ads = 1, 3 Leagues = up to 3, Unlimited = the whole catalogue.
+    /// Capped at the number of leagues that actually exist so a small catalogue
+    /// never claims more than it has. Change tier→count here only.
     var leagueAllowance: Int {
         switch tier {
-        case .free:  return 1
-        case .noAds: return min(3, Leagues.all.count)
-        case .pro:   return Leagues.all.count
+        case .free:       return 1
+        case .noAds:       return 1
+        case .threeLeague: return min(3, Leagues.all.count)
+        case .unlimited:   return Leagues.all.count
         }
     }
 
