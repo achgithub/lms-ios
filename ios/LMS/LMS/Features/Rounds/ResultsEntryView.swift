@@ -20,7 +20,7 @@ struct ResultsEntryView: View {
     @State private var outcomes: [Int: FixtureOutcome] = [:]
     @State private var lastPulled: Date?
 
-    // Refresh throttle — shared with Scores via the same 60s live-pull clock
+    // Refresh throttle — shared with Scores via the same 120s live-pull clock
     // (see `LeagueDataCache.sharedLiveThrottleUntil`): this action is pulling
     // live results, the same job as Scores, just via /fixtures instead of
     // /scores. Without sharing the clock, a manager could pull here, then

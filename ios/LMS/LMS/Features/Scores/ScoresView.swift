@@ -15,10 +15,10 @@ struct ScoresView: View {
     @State private var lastRefreshed: Date?
 
     // Refresh throttle — the visible form of Rule A. While `freshUntil` is in the
-    // future, every enabled league's scores are still within the 60s local TTL,
+    // future, every enabled league's scores are still within the 120s local TTL,
     // so nothing fresher exists to fetch: the refresh button is greyed and the
     // footer shows a countdown to when it re-enables. Applies to subscribers too —
-    // scores can't be fresher than the Worker's own ~60s upstream window, so a
+    // scores can't be fresher than the Worker's own ~120s upstream window, so a
     // sooner tap would only burn calls for identical data. `now` ticks once a
     // second to drive the countdown and flip the button back on at zero.
     @State private var now = Date()
@@ -114,7 +114,7 @@ struct ScoresView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Greyed while throttled (within the 60s TTL) — the footer
+                    // Greyed while throttled (within the 120s TTL) — the footer
                     // countdown says when it re-enables. See `freshUntil`.
                     Button { refresh() } label: {
                         Image(systemName: "arrow.clockwise")
@@ -189,7 +189,7 @@ struct ScoresView: View {
     /// The throttle deadline comes from the shared live-pull clock (see
     /// `LeagueDataCache.sharedLiveThrottleUntil`), not this screen's own cache —
     /// Results entry's "Pull results from server" does the same job (via
-    /// /fixtures) and shares the same 60s cooldown, so pulling in one screen
+    /// /fixtures) and shares the same 120s cooldown, so pulling in one screen
     /// also throttles the other.
     private func scoresThrottleUntil() -> Date? {
         LeagueDataCache.sharedLiveThrottleUntil(for: enabled.leagues.map(\.id))

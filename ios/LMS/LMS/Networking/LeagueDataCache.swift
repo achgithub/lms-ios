@@ -10,8 +10,10 @@ import Foundation
 /// separate from the revenue gate (AdGate) and from the Worker's own upstream
 /// TTLs (a later pass).
 enum CacheTTL {
-    /// Live scores change minute-to-minute.
-    static let scores: TimeInterval = 60
+    /// Live scores change minute-to-minute. 120s (not 60) to discourage
+    /// constant-refresh misuse at scale — matches the Worker's own
+    /// SCORE_TTL_SECONDS, which can't return anything fresher anyway.
+    static let scores: TimeInterval = 120
     /// The table only moves when matches finish.
     static let standings: TimeInterval = 30 * 60
     /// The schedule is near-static; only kickoff edits / postponements move it.
