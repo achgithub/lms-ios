@@ -31,11 +31,28 @@ not on current cost-to-serve, since extra leagues barely move infra cost
 (see below). Expect close to zero real differentiation or uptake for
 Unlimited until a 4th+ league ships — that's expected, not a bug.
 
-## Implementation note (not yet done)
+## Implementation status (app side done, 2026-06-18)
 
-`Entitlements.Tier` (currently `free` / `no_ads` / `pro`) still needs
-collapsing to match this ladder when RevenueCat products are actually wired
-up. That's a pre-existing open item, not new.
+`Entitlements.Tier` is `free` / `no_ads` / `three_league` / `unlimited`,
+matching this ladder. `PurchaseOption` (tier + `BillingPeriod`) represents
+one purchasable RevenueCat package — needed because Unlimited offers two
+billing lengths sharing one entitlement.
+
+**RevenueCat/App Store Connect package identifiers to create** (4 products,
+not the 6 first floated — No Ads and 3 Leagues don't get an annual option
+at launch):
+
+| Package id | Tier (entitlement) | Billing |
+|---|---|---|
+| `no_ads` | `no_ads` | monthly (no suffix — will never have an annual option) |
+| `three_league_monthly` | `three_league` | monthly (suffixed now so adding annual later needs no app change) |
+| `unlimited_monthly` | `unlimited` | monthly |
+| `unlimited_annual` | `unlimited` | annual, £42.00/yr |
+
+Still open: confirm these exact identifiers in the RevenueCat dashboard
+match `PurchaseOption.packageId`; set the real API key
+(`PurchaseService.apiKey`); add the SPM packages in Xcode (RevenueCat +
+Google Mobile Ads) — see [[lms-monetization]] for that activation checklist.
 
 ## The cost/revenue model behind the decision
 
