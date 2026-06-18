@@ -3,6 +3,41 @@ import Foundation
 import RevenueCat
 #endif
 
+/// A subscription's billing length. Distinct from `Tier`: a tier is the
+/// *entitlement* (what access it grants); a `PurchaseOption` is the actual
+/// purchasable RevenueCat package — one tier can offer more than one billing
+/// length (only Unlimited does today; 3 Leagues is named ready for one later).
+enum BillingPeriod: String {
+    case monthly
+    case annual
+}
+
+/// One purchasable package: a tier + billing length. Maps to a RevenueCat
+/// package identifier — `"<tier>"` for No Ads (it will never have an annual
+/// option, so no suffix is needed), `"<tier>_<period>"` for everything else
+/// (suffixed even where only one length exists today, e.g. "three_league_monthly",
+/// so adding an annual option later is a RevenueCat-only change, no app-side
+/// rename). Multiple options can share a `Tier` (and so the same RevenueCat
+/// entitlement) — purchasing either grants the same access.
+struct PurchaseOption: Identifiable, Hashable {
+    let tier: Tier
+    let period: BillingPeriod
+
+    var id: String { packageId }
+    var packageId: String {
+        tier == .noAds ? tier.rawValue : "\(tier.rawValue)_\(period.rawValue)"
+    }
+
+    /// Every package the paywall can offer, in display order. Add a new
+    /// duration for a tier here only — no other code needs to change.
+    static let all: [PurchaseOption] = [
+        PurchaseOption(tier: .noAds, period: .monthly),
+        PurchaseOption(tier: .threeLeague, period: .monthly),
+        PurchaseOption(tier: .unlimited, period: .monthly),
+        PurchaseOption(tier: .unlimited, period: .annual),
+    ]
+}
+
 /// RevenueCat wrapper. Compiles with or without the SDK present (guarded by
 /// `canImport`), so the build stays green until the `purchases-ios` package is
 /// added in Xcode. Until a real API key is set, the app runs on the dev tier
@@ -69,13 +104,13 @@ final class PurchaseService {
         #endif
     }
 
-    /// Buy the subscription that grants `tier`, reporting the outcome.
-    func purchase(_ tier: Tier) async -> PurchaseOutcome {
+    /// Buy `option` (a tier + billing length), reporting the outcome.
+    func purchase(_ option: PurchaseOption) async -> PurchaseOutcome {
         #if canImport(RevenueCat)
         guard isConfigured else { return .unavailable }
         do {
             let offerings = try await Purchases.shared.offerings()
-            guard let package = Self.package(for: tier, in: offerings) else { return .unavailable }
+            guard let package = Self.package(for: option, in: offerings) else { return .unavailable }
             let result = try await Purchases.shared.purchase(package: package)
             if result.userCancelled { return .cancelled }
             let newTier = Self.tier(from: result.customerInfo)
@@ -97,26 +132,26 @@ final class PurchaseService {
         return .free
     }
 
-    /// Maps a tier to its RevenueCat package. TODO: confirm the package/product
-    /// identifiers in the RevenueCat dashboard. Convention until then: the current
-    /// offering exposes a package whose identifier is the tier raw value
-    /// ("no_ads" / "three_league" / "unlimited").
-    private static func package(for tier: Tier, in offerings: Offerings) -> Package? {
+    /// Maps a purchase option to its RevenueCat package by `packageId`. TODO:
+    /// confirm these identifiers in the RevenueCat dashboard match
+    /// `PurchaseOption.packageId` (e.g. "no_ads", "three_league_monthly",
+    /// "unlimited_monthly", "unlimited_annual").
+    private static func package(for option: PurchaseOption, in offerings: Offerings) -> Package? {
         let packages = offerings.current?.availablePackages ?? []
-        return packages.first { $0.identifier == tier.rawValue }
+        return packages.first { $0.identifier == option.packageId }
     }
     #endif
 
-    /// Localized price string for a tier's current package (e.g. "£2.49"), or
-    /// nil if RevenueCat isn't linked/configured or the package isn't found.
-    /// This is how regional pricing reaches the UI — the price is never
-    /// hardcoded in the app; it's whatever App Store Connect is showing the
-    /// user's actual storefront, read back via StoreKit/RevenueCat at runtime.
-    func localizedPrice(for tier: Tier) async -> String? {
+    /// Localized price string for a purchase option (e.g. "£2.49"), or nil if
+    /// RevenueCat isn't linked/configured or the package isn't found. This is
+    /// how regional pricing reaches the UI — the price is never hardcoded in
+    /// the app; it's whatever App Store Connect is showing the user's actual
+    /// storefront, read back via StoreKit/RevenueCat at runtime.
+    func localizedPrice(for option: PurchaseOption) async -> String? {
         #if canImport(RevenueCat)
         guard isConfigured else { return nil }
         guard let offerings = try? await Purchases.shared.offerings() else { return nil }
-        guard let package = Self.package(for: tier, in: offerings) else { return nil }
+        guard let package = Self.package(for: option, in: offerings) else { return nil }
         return package.storeProduct.localizedPriceString
         #else
         return nil
