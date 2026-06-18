@@ -1,51 +1,102 @@
 import SwiftUI
 
 /// Brand splash shown once at launch, over the instant (blank) system launch
-/// screen. v1 (LMS): a single full-bleed composed image (`splash_lms`) with a
-/// simple fade-in. The earlier staged shield→wordmark→name animation is parked
-/// until we have clean transparent asset slices (v2).
+/// screen. v2: the shared cross-app brand moment — background, then the
+/// master shield, then the "SPORTS MANAGER" wordmark, then this app's own
+/// name in its accent colour. Every Sports Manager app shows the same
+/// shield/background/wordmark beats; only the final app-name line and its
+/// colour vary per app. See docs/brand/style-guide.md.
 ///
-/// Timeline: fade in over ~0.6s, hold ~1.5s, then hand off to the app.
+/// Timeline: background fades in immediately; shield scales+fades in
+/// (~0.5s); wordmark fades in (~0.35s); app name fades in in the app's
+/// accent colour (~0.35s); hold ~1s; hand off.
 struct SplashView: View {
     /// Called when the splash should hand off to the app.
     var onFinished: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var opacity = 0.0
+    @State private var backgroundOpacity = 0.0
+    @State private var shieldOpacity = 0.0
+    @State private var shieldScale = 0.85
+    @State private var wordmarkOpacity = 0.0
+    @State private var appNameOpacity = 0.0
 
     var body: some View {
         ZStack {
-            // Dark backdrop matches the image's edges so the 16:9 art is shown
-            // whole and centred (scaledToFit) with seamless letterboxing on
-            // taller screens — no cropping/off-centre.
             Color.black.ignoresSafeArea()
 
-            if let splash = Brand.image("splash_lms") {
-                splash
+            if let background = Brand.image("background") {
+                background
                     .resizable()
-                    .scaledToFit()
+                    .aspectRatio(contentMode: .fill)
                     .ignoresSafeArea()
-                    .opacity(opacity)
+                    .opacity(backgroundOpacity)
+            }
+
+            VStack(spacing: 18) {
+                if let shield = Brand.image("shield") {
+                    shield
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 160, height: 160)
+                        .opacity(shieldOpacity)
+                        .scaleEffect(shieldScale)
+                }
+
+                VStack(spacing: 4) {
+                    Text("SPORTS MANAGER")
+                        .font(.custom("MontserratThin-Black", size: 15))
+                        .kerning(2)
+                        .foregroundStyle(Brand.masterBlue)
+                        .opacity(wordmarkOpacity)
+
+                    Text("LAST MAN STANDING")
+                        .font(.custom("MontserratThin-ExtraBold", size: 22))
+                        .kerning(1)
+                        .foregroundStyle(Brand.accent)
+                        .opacity(appNameOpacity)
+                }
             }
         }
         .task { await run() }
     }
 
     private func run() async {
-        if reduceMotion {
-            opacity = 1
-        } else {
-            withAnimation(.easeIn(duration: 0.6)) { opacity = 1 }
+        guard !reduceMotion else {
+            backgroundOpacity = 1
+            shieldOpacity = 1
+            shieldScale = 1
+            wordmarkOpacity = 1
+            appNameOpacity = 1
+            try? await Task.sleep(for: .seconds(1.5))
+            onFinished()
+            return
         }
-        // Fade (0.6s) + hold (1.5s) before handing off.
-        try? await Task.sleep(for: .seconds(0.6 + 1.5))
+
+        withAnimation(.easeIn(duration: 0.3)) { backgroundOpacity = 1 }
+        try? await Task.sleep(for: .seconds(0.2))
+        withAnimation(.easeOut(duration: 0.5)) {
+            shieldOpacity = 1
+            shieldScale = 1
+        }
+        try? await Task.sleep(for: .seconds(0.4))
+        withAnimation(.easeIn(duration: 0.35)) { wordmarkOpacity = 1 }
+        try? await Task.sleep(for: .seconds(0.25))
+        withAnimation(.easeIn(duration: 0.35)) { appNameOpacity = 1 }
+        try? await Task.sleep(for: .seconds(0.35 + 1.0))
         onFinished()
     }
 }
 
-/// Brand tokens. `accent` is the LMS product colour; swap per product variant.
+/// Brand tokens shared across the Sports Manager app family.
+/// See docs/brand/style-guide.md for the full palette.
 enum Brand {
-    static let accent = Color(hex: "EF4444")
+    /// This app's own accent colour (LMS = orange). Swap per product variant.
+    static let accent = Color(hex: "F97316")
+
+    /// The shared master brand colour used for the splash shield/wordmark
+    /// across every app in the family — NOT per-app.
+    static let masterBlue = Color(hex: "3DA8FF")
 
     /// An asset-catalog image by name, or nil if the slot is empty (so a caller
     /// can fall back). Guards against an empty/zero-size imageset.

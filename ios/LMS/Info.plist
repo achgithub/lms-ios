@@ -17,5 +17,12 @@
 	     Revisit if you add non-exempt cryptography. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Brand wordmark font (splash + future headers), see docs/brand/style-guide.md.
+	     Files live in LMS/Resources/Fonts/. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>Montserrat-ExtraBold.ttf</string>
+		<string>Montserrat-Black.ttf</string>
+	</array>
 </dict>
 </plist>

@@ -62,20 +62,27 @@ struct RootTabView: View {
         }
         .task {
             PurchaseService.shared.configure()
-            // Skip ad bootstrap under UI tests so the ATT / UMP consent dialogs
-            // never appear and make the launch flow flaky.
-            if !ProcessInfo.processInfo.arguments.contains("-uitests") {
-                AdsBootstrap.start()
-                // Interstitial dropped (low value for this workflow app, 2026-06-15).
-                // Code kept in InterstitialAdManager; re-enable by uncommenting here
-                // and the scenePhase trigger below.
-                // InterstitialAdManager.shared.preload()
-                RewardedAdManager.shared.preload()
-            }
             await entitlements.refresh()
             // Drop any leagues that no longer exist. Going over the subscription
             // allowance is handled by the blocking downgrade gate, not silently.
             EnabledLeagues.shared.pruneInvalid()
+        }
+        // Ads bootstrap presents the UMP consent form as a UIKit modal at the
+        // window level, which would otherwise pop over the SwiftUI splash
+        // regardless of zIndex. Wait for the splash to finish, same as the
+        // onboarding/downgrade sheets above. `task(id:)` re-fires once
+        // `splashActive` flips to false.
+        .task(id: splashActive) {
+            guard !splashActive else { return }
+            // Skip ad bootstrap under UI tests so the ATT / UMP consent dialogs
+            // never appear and make the launch flow flaky.
+            guard !ProcessInfo.processInfo.arguments.contains("-uitests") else { return }
+            AdsBootstrap.start()
+            // Interstitial dropped (low value for this workflow app, 2026-06-15).
+            // Code kept in InterstitialAdManager; re-enable by uncommenting here
+            // and the scenePhase trigger below.
+            // InterstitialAdManager.shared.preload()
+            RewardedAdManager.shared.preload()
         }
         // Interstitial dropped (2026-06-15) — foreground trigger disabled.
         // .onChange(of: scenePhase) { _, phase in
