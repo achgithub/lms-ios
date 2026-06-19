@@ -183,6 +183,80 @@ rotate mid-build.
 
 ---
 
+## Android — Play Integrity, future work (discussed 2026-06-19, not built)
+
+App Attest is **Apple-only** — there is no Android equivalent to *this specific*
+API. Android's analogous mechanism is Google's **Play Integrity API**, a
+different protocol with its own verification flow. Once App Attest enforcement
+is switched on for `pl`/`elc`/`pd`, an Android app would always get
+`401 attestation required` with no possible fix, because it cannot produce an
+Apple App Attest assertion.
+
+**This is fine and doesn't block iOS shipping with App Attest now.** The two
+platforms need separate, additive verification paths, added when Android
+actually exists:
+
+- **No iOS recoding required, ever.** The iOS app only ever sends
+  `X-Attest-Key-Id`/`X-Attest-Challenge`/`X-Attest-Assertion` and has no
+  awareness of Android. Adding Android support never touches this.
+- **The Worker DOES need new code, but additive, not a rewrite:** a second
+  verification branch in `middleware/attest.ts` (route by which headers a
+  request carries — iOS headers vs a future `X-Play-Integrity-Token`), a new
+  `verifyPlayIntegrity()` function calling Google's API, and a parallel device
+  table alongside `attest_devices` (the verdict shape differs). New config
+  needed then: Android package name + Google Cloud project number (mirrors
+  `APP_ATTEST_TEAM_ID`/`APP_ATTEST_BUNDLE_ID`).
+- **Considered and rejected for now:** pre-building a stub `play-integrity.ts`
+  file + dead branch ahead of any Android client existing. Decided against —
+  speculative scaffolding for an undecided integration shape, with no actual
+  protective value (the "no iOS recoding" guarantee holds regardless of
+  whether a stub exists).
+
+**The actual risk worth managing is deploying to a Worker already serving live
+iOS customers, not Android's code shape.** Concrete safeguards for when that
+work starts:
+1. Confirm `attest.test.ts` actually exercises `requireAttestation` (the
+   middleware), not just the lower-level crypto helpers — add coverage first if
+   not, so a future edit to add the Android branch can't silently regress the
+   iOS path without a test catching it.
+2. Hard rule: Android verification work must be additive-only — new
+   file(s), new branch gated on a header iOS never sends, **zero edits** to
+   the existing iOS functions (`verifyAssertion`, `verifyChallenge`,
+   `getDevice`, etc.). If a diff for "add Android" touches anything inside the
+   current iOS code paths, that's the review red flag.
+3. Deploy discipline: `pnpm typecheck && pnpm test` first, then redeploy
+   `pl`/`elc`/`pd`, then immediately smoke-test the live iOS flow (a real
+   attested request) before walking away — same as any change to a shared
+   backend.
+
+## Maintenance mode — planned, deferred to Beta/TestFlight (decided 2026-06-19)
+
+Also discussed: during a live worker deploy, a temporary failure on a data
+route currently looks like a generic error to the app — risks a support call.
+A deliberate "we're doing maintenance" response, recognized by the app, turns
+that into an expected, reassuring state instead. **Not built — revisit at the
+Beta/TestFlight phase** (see the route-to-live Phase 4 notes elsewhere).
+
+**Decided scope:**
+- **Routes:** only the app-relevant data APIs (`/fixtures /scores /standings
+  /teams`) — NOT `/health` or `/admin`, which must keep working so the flag
+  itself stays controllable.
+- **Granularity: GLOBAL across pl/elc/pd, not per-league.** Reasoning: a
+  manager often has several leagues active in one session — 1-of-3 leagues
+  failing while 2 succeed is *more* confusing than all three being down
+  together with one clear message. This is a deliberate deviation from the
+  rest of the codebase's per-league KV pattern (demo clock, gates, etc. are
+  all per-league) — worth remembering when designing the actual toggle
+  mechanism, since it needs shared state across three separate Worker
+  deployments, not three independent KV flags.
+
+**Sketched design (not built):** a KV-stored `maintenance:on` flag, toggled via
+an admin-token-gated `/admin/maintenance/on|off` endpoint (no redeploy needed
+to flip it — flip on → deploy the risky change → verify → flip off).
+Middleware returns a distinct, structured response (e.g.
+`503 {"error":"maintenance","message":"..."}`) that the app recognizes and
+shows a friendly state for, separate from its generic error handling.
+
 ## References
 
 - football-data.org licence: attribution only (shipped, `c19fd59`).
