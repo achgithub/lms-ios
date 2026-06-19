@@ -197,7 +197,11 @@ enum GameLogicService {
             guard let pick = pick(for: player, in: round) else { return nil }
             return PickOutcome(playerId: player.id, result: pick.result)
         }
-        let elimination = GameEngine.computeEliminations(picks: outcomes)
+        let elimination = GameEngine.computeEliminations(
+            picks: outcomes,
+            drawEliminates: game.drawEliminates,
+            postponedEliminates: game.postponedEliminates
+        )
         let eliminatedIds = Set(elimination.eliminatedPlayerIds)
 
         var eliminated: [Player] = []

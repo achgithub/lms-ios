@@ -61,16 +61,28 @@ nonisolated enum GameEngine {
 
     // MARK: - Eliminations (§6.5)
 
-    /// A loss eliminates; win/draw/postponed survive. Unresolved (nil) is treated
-    /// as surviving — a round should not be closed before results are known.
-    static func computeEliminations(picks: [PickOutcome]) -> EliminationResult {
+    /// A loss always eliminates and a win always survives; draw/postponed follow
+    /// the game's configured rules (spec §6.5a — manager sets these at creation).
+    /// Unresolved (nil) is treated as surviving — a round should not be closed
+    /// before results are known.
+    static func computeEliminations(
+        picks: [PickOutcome],
+        drawEliminates: Bool,
+        postponedEliminates: Bool
+    ) -> EliminationResult {
         var eliminated: [UUID] = []
         var surviving: [UUID] = []
         for pick in picks {
+            let eliminates: Bool
             switch pick.result {
-            case .loss:
+            case .loss: eliminates = true
+            case .win, .none: eliminates = false
+            case .draw: eliminates = drawEliminates
+            case .postponed: eliminates = postponedEliminates
+            }
+            if eliminates {
                 eliminated.append(pick.playerId)
-            case .win, .draw, .postponed, .none:
+            } else {
                 surviving.append(pick.playerId)
             }
         }

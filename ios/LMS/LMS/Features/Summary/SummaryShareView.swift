@@ -30,11 +30,17 @@ struct SummaryShareView: View {
                         Image(uiImage: rendered)
                             .resizable()
                             .scaledToFit()
-                            .frame(maxWidth: .infinity)
+                            // Cap at the card's native 390pt export width (see
+                            // SummaryCardView) so the preview shows at 1x on any
+                            // device — without this, a wide iPad screen scales the
+                            // fixed-aspect image up, making tall cards (e.g. an
+                            // 11-player Results card) badly exceed one screen.
+                            .frame(maxWidth: 390)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .shadow(radius: 8)
                             .padding()
                     }
+                    .frame(maxWidth: .infinity)
                 } else if let errorMessage {
                     ContentUnavailableView("Couldn't build card", systemImage: "photo.badge.exclamationmark",
                                            description: Text(errorMessage))

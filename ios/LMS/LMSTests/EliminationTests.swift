@@ -13,9 +13,25 @@ struct EliminationTests {
             PickOutcome(playerId: d, result: .postponed),
             PickOutcome(playerId: e, result: nil),
         ]
-        let result = GameEngine.computeEliminations(picks: picks)
-        #expect(result.eliminatedPlayerIds == [a])
-        #expect(Set(result.survivingPlayerIds) == Set([b, c, d, e]))
+        // Default rules: draw eliminates, postponed survives (§6.5a).
+        let result = GameEngine.computeEliminations(picks: picks, drawEliminates: true, postponedEliminates: false)
+        #expect(Set(result.eliminatedPlayerIds) == Set([a, c]))
+        #expect(Set(result.survivingPlayerIds) == Set([b, d, e]))
+    }
+
+    @Test func resultRulesAreConfigurable() {
+        let a = UUID(), b = UUID()
+        let picks = [
+            PickOutcome(playerId: a, result: .draw),
+            PickOutcome(playerId: b, result: .postponed),
+        ]
+        let lenient = GameEngine.computeEliminations(picks: picks, drawEliminates: false, postponedEliminates: false)
+        #expect(lenient.eliminatedPlayerIds.isEmpty)
+        #expect(Set(lenient.survivingPlayerIds) == Set([a, b]))
+
+        let strict = GameEngine.computeEliminations(picks: picks, drawEliminates: true, postponedEliminates: true)
+        #expect(Set(strict.eliminatedPlayerIds) == Set([a, b]))
+        #expect(strict.survivingPlayerIds.isEmpty)
     }
 
     @Test func detectsAllEliminated() {

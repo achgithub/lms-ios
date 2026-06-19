@@ -15,6 +15,8 @@ struct NewGameView: View {
     @State private var anonymity: AnonymityMode = .anonymous
     @State private var selectedLeagueIds: Set<String> = []
     @State private var managerPlaying = true   // manager opts in/out per game
+    @State private var drawEliminates = true
+    @State private var postponedEliminates = false
 
     private var managerTrimmed: String { managerName.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -72,6 +74,29 @@ struct NewGameView: View {
                     }
                 }
 
+                Section {
+                    HStack {
+                        Text("Win").foregroundStyle(.secondary)
+                        Spacer()
+                        Text("Survives").foregroundStyle(.secondary)
+                    }
+                    Toggle(isOn: $postponedEliminates) {
+                        resultRuleLabel("Postponed", eliminates: postponedEliminates)
+                    }
+                    Toggle(isOn: $drawEliminates) {
+                        resultRuleLabel("Draw", eliminates: drawEliminates)
+                    }
+                    HStack {
+                        Text("Loss").foregroundStyle(.secondary)
+                        Spacer()
+                        Text("Eliminates").foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Result Rules")
+                } footer: {
+                    Text("A win always survives and a loss always eliminates. Toggle on for Postponed/Draw to treat them as a loss too — off keeps them as a survive.")
+                }
+
                 Section("Summaries") {
                     Picker("Anonymity", selection: $anonymity) {
                         ForEach(AnonymityMode.allCases) { Text($0.label).tag($0) }
@@ -101,6 +126,14 @@ struct NewGameView: View {
         }
     }
 
+    private func resultRuleLabel(_ title: LocalizedStringKey, eliminates: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).foregroundStyle(.primary)
+            Text(eliminates ? "Counts as a loss" : "Counts as a win")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
     private func toggleLeague(_ id: String) {
         if selectedLeagueIds.contains(id) { selectedLeagueIds.remove(id) } else { selectedLeagueIds.insert(id) }
     }
@@ -111,7 +144,9 @@ struct NewGameView: View {
             season: season,
             allowRepeats: Leagues.app.allowRepeatDefault,
             anonymityMode: anonymity,
-            leagueIds: Array(selectedLeagueIds)
+            leagueIds: Array(selectedLeagueIds),
+            drawEliminates: drawEliminates,
+            postponedEliminates: postponedEliminates
         )
         context.insert(game)
 

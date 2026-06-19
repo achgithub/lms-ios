@@ -149,15 +149,19 @@ struct SummaryData {
             return lhs.teamName.localizedCaseInsensitiveCompare(rhs.teamName) == .orderedAscending
         }
 
-        // Results: derive this round's outcome from the picks (loss = out).
+        // Results: this round's outcome per player — read from `player.status`
+        // (set by GameLogicService.closeRound, which already applied the game's
+        // draw/postponed rules) rather than re-deriving from `pick.result` here,
+        // which would silently ignore those per-game rules and could disagree
+        // with the footer counts below.
         var survived: [Player] = []
         var eliminated: [Player] = []
         for pick in round.picks {
             guard let player = pick.player else { continue }
-            switch pick.result {
-            case .loss: eliminated.append(player)
-            case .win, .draw, .postponed: survived.append(player)
-            case .none: break
+            if player.status == .eliminated {
+                eliminated.append(player)
+            } else {
+                survived.append(player)
             }
         }
         let survivorsSorted = survived.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

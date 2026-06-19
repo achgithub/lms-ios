@@ -10,6 +10,12 @@ final class Game {
     var statusRaw: String
     var allowRepeats: Bool
     var anonymityModeRaw: String
+    /// Result rules (§6.5a): a win always survives and a loss always eliminates
+    /// — these two are configurable. Defaults match classic Last Man Standing
+    /// (draw eliminates) while treating a postponed fixture as a non-event
+    /// (survives, since the match never happened). Set once at creation.
+    var drawEliminates: Bool = true
+    var postponedEliminates: Bool = false
     /// The most recent tie / all-eliminated resolution, so its outcome card stays
     /// shareable from the game screen. nil until a tie has been resolved.
     var lastOutcomeRaw: String?
@@ -30,7 +36,9 @@ final class Game {
         season: String,
         allowRepeats: Bool,
         anonymityMode: AnonymityMode = .named,
-        leagueIds: [String] = [Leagues.home.id]
+        leagueIds: [String] = [Leagues.home.id],
+        drawEliminates: Bool = true,
+        postponedEliminates: Bool = false
     ) {
         self.id = UUID()
         self.name = name
@@ -40,6 +48,8 @@ final class Game {
         self.anonymityModeRaw = anonymityMode.rawValue
         self.createdAt = Date()
         self.leagueIdsRaw = leagueIds.isEmpty ? [Leagues.home.id] : leagueIds
+        self.drawEliminates = drawEliminates
+        self.postponedEliminates = postponedEliminates
     }
 
     /// The league(s) this game runs in (legacy empty → home).
