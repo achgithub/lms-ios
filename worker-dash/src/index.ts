@@ -117,20 +117,19 @@ function shellHtml(): Response {
         <button onclick="load('${l.key}')">Load</button>
       </div>
       <div id="d-${l.key}" class="league-data">—</div>
-      <h3>Season control</h3>
-      <div class="phase-row">
-        <span>Phase: <span id="phase-${l.key}" class="phase-badge">—</span></span>
-        — closed = no API calls at all, regardless of TTL/cron. Pure cost switch;
-        every call (closed or live) is always pinned to the correct season.
-      </div>
-      <div class="season-actions">
-        <button onclick="setPhase('${l.key}','closed')">Mark Closed (season ended)</button>
-        <button onclick="setPhase('${l.key}','live')">Go Live (resume polling)</button>
+      <h3>API control</h3>
+      <div class="toggle-row">
+        <button id="toggle-${l.key}" class="api-toggle" onclick="toggleApi('${l.key}')">—</button>
+        <span class="toggle-hint">One switch, mutually exclusive — live or blocked, never both.
+        Blocked = zero upstream calls, regardless of TTL/cron; serves whatever's cached, however
+        stale. Use it for a season-end freeze (most common) or to ride out a worker deploy/incident
+        without users seeing errors. Correctness is unaffected either way — every call is always
+        pinned to the right season.</span>
       </div>
       <div class="season-actions">
         <input id="year-${l.key}" type="number" placeholder="auto (current season)" style="width:9em">
         <button onclick="probeSeason('${l.key}')">Probe (read-only check)</button>
-        <button onclick="syncSeason('${l.key}')">Sync now (updates cache, phase unchanged)</button>
+        <button onclick="syncSeason('${l.key}')">Sync now (updates cache, switch unchanged)</button>
       </div>
       <div id="season-msg-${l.key}" class="season-msg"></div>
     </section>`).join("");
@@ -176,10 +175,12 @@ function shellHtml(): Response {
     .season { color: #e0e0e0; margin-top: 0.6rem; font-size: 13px; }
     .next   { color: #888; font-size: 12px; margin-top: 0.2rem; margin-bottom: 0.2rem; }
     .fetched { color: #333; font-size: 11px; margin-top: 0.6rem; }
-    .phase-row { font-size: 12px; color: #888; margin-bottom: 0.5rem; }
-    .phase-badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: bold; }
-    .phase-live     { background: #0d1a0d; color: #4a4; border: 1px solid #1a331a; }
-    .phase-closed   { background: #1a1505; color: #ca6; border: 1px solid #332a0d; }
+    .toggle-row { display: flex; align-items: flex-start; gap: 0.7rem; margin-bottom: 0.7rem; }
+    .toggle-hint { font-size: 11px; color: #777; line-height: 1.4; padding-top: 0.3rem; }
+    .api-toggle { flex-shrink: 0; min-width: 9.5em; font-size: 12px; font-weight: bold;
+                  padding: 0.5rem 0.8rem; border-radius: 6px; cursor: pointer; }
+    .api-toggle.live    { background: #0d1a0d; color: #4f4; border: 1px solid #2a5; }
+    .api-toggle.closed  { background: #260d0d; color: #f55; border: 1px solid #722; }
     .season-actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
     input { background: #1a1a1a; color: #e0e0e0; border: 1px solid #333; border-radius: 4px;
             padding: 0.3rem 0.5rem; font-family: inherit; font-size: 12px; }
@@ -209,7 +210,7 @@ function shellHtml(): Response {
       btn.disabled = true; btn.textContent = '…';
       try {
         const d = await fetch('/data/' + key).then(r => r.json());
-        setPhaseBadge(key, d.phase);
+        setToggle(key, d.phase);
 
         // D1 sync table
         const datasets = ['fixtures','standings','teams'];
@@ -262,20 +263,26 @@ function shellHtml(): Response {
       }
     }
 
-    function setPhaseBadge(key, phase) {
-      const el = document.getElementById('phase-' + key);
-      el.textContent = phase || 'live';
-      el.className = 'phase-badge phase-' + (phase || 'live');
+    function setToggle(key, phase) {
+      const btn = document.getElementById('toggle-' + key);
+      const isLive = phase !== 'closed';
+      btn.textContent = isLive ? '🟢 LIVE — tap to block' : '🔴 BLOCKED — serving stale, tap to go live';
+      btn.className = 'api-toggle ' + (isLive ? 'live' : 'closed');
+      btn.dataset.phase = isLive ? 'live' : 'closed';
     }
 
-    async function setPhase(key, value) {
+    async function toggleApi(key) {
+      const btn = document.getElementById('toggle-' + key);
+      const next = btn.dataset.phase === 'closed' ? 'live' : 'closed';
       const msg = document.getElementById('season-msg-' + key);
-      msg.textContent = 'Setting phase to ' + value + '…';
+      msg.textContent = 'Setting to ' + next + '…';
       try {
-        const r = await fetch('/action/' + key + '/phase?value=' + value, { method: 'POST' }).then(r => r.json());
+        const r = await fetch('/action/' + key + '/phase?value=' + next, { method: 'POST' }).then(r => r.json());
         if (!r.ok) { msg.textContent = 'Error: ' + (r.error || 'unknown'); return; }
-        setPhaseBadge(key, r.phase);
-        msg.textContent = 'Phase set to ' + r.phase + '.';
+        setToggle(key, r.phase);
+        msg.textContent = r.phase === 'closed'
+          ? 'Blocked — serving cached data only, no upstream calls.'
+          : 'Live — normal polling resumed.';
       } catch (e) { msg.textContent = 'Error: ' + e.message; }
     }
 
