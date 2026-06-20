@@ -11,7 +11,7 @@ import { FIXTURES_KEYS, resetGate, SCORES_KEYS, STANDINGS_KEYS } from "./gate";
 import { refreshMatchData, refreshStandings } from "./refresh";
 import { currentSeasonYear, getSeasonPhase } from "./seasonPhase";
 
-export async function syncTeams(db: D1Database, provider: Provider, season?: number): Promise<number> {
+export async function syncTeams(db: D1Database, provider: Provider, season: number): Promise<number> {
   const teams = await provider.fetchTeams(season);
   await upsertTeams(db, teams);
   await recordSync(db, "teams", teams.length);
