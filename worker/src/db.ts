@@ -128,6 +128,15 @@ export async function getTeams(db: D1Database): Promise<Team[]> {
 
 // ── Writes (cron sync) ──────────────────────────────────────────────────────
 
+// Upserts the provider's current team list, then prunes any team no longer
+// referenced by a fixture or standings row. We deliberately keep ~2 seasons
+// of fixtures cached at once (current + next), so a team can legitimately
+// outlive its season in this table (e.g. a just-relegated club's last-season
+// results still need its name) — pruning by "not in the latest /teams fetch"
+// would delete those and either violate the fixtures/standings FK on
+// teams.external_id or orphan historical fixture display ("Team 1076"
+// instead of "Coventry City"). Pruning by "not referenced anywhere" is safe
+// and self-heals once those old fixtures eventually age out.
 export async function upsertTeams(db: D1Database, teams: Team[]): Promise<void> {
   if (teams.length === 0) return;
   const stmt = db.prepare(
@@ -137,11 +146,16 @@ export async function upsertTeams(db: D1Database, teams: Team[]): Promise<void> 
        name = excluded.name, short_name = excluded.short_name,
        tla = excluded.tla, league_id = excluded.league_id`,
   );
-  await db.batch(
-    teams.map((t) =>
-      stmt.bind(t.id, t.externalId, t.name, t.shortName, t.tla, t.leagueId),
-    ),
+  const prune = db.prepare(
+    `DELETE FROM teams WHERE external_id NOT IN (
+       SELECT home_team_id FROM fixtures UNION SELECT away_team_id FROM fixtures
+       UNION SELECT team_id FROM standings
+     )`,
   );
+  await db.batch([
+    ...teams.map((t) => stmt.bind(t.id, t.externalId, t.name, t.shortName, t.tla, t.leagueId)),
+    prune,
+  ]);
 }
 
 export async function upsertFixtures(db: D1Database, fixtures: Fixture[]): Promise<void> {
