@@ -121,7 +121,7 @@ actor AppAttestService {
         var request = URLRequest(url: baseURL.appendingPathComponent("attest/challenge"))
         request.httpMethod = "POST"
         let (data, response) = try await URLSession.shared.data(for: request)
-        try Self.check(response)
+        try Self.check(response, data: data)
         return try JSONDecoder().decode(ChallengeResponse.self, from: data).challenge
     }
 
@@ -132,13 +132,13 @@ actor AppAttestService {
         request.httpBody = try JSONEncoder().encode([
             "keyId": keyId, "attestation": attestation, "challenge": challenge,
         ])
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try Self.check(response)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.check(response, data: data)
     }
 
-    private static func check(_ response: URLResponse) throws {
+    private static func check(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw APIError.badStatus((response as? HTTPURLResponse)?.statusCode ?? -1)
+            throw APIError.badStatus((response as? HTTPURLResponse)?.statusCode ?? -1, body: String(data: data, encoding: .utf8))
         }
     }
 

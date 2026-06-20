@@ -2,12 +2,14 @@ import Foundation
 
 enum APIError: LocalizedError {
     case badURL
-    case badStatus(Int)
+    case badStatus(Int, body: String?)
 
     var errorDescription: String? {
         switch self {
         case .badURL: return "Invalid request URL."
-        case .badStatus(let code): return "Server returned status \(code)."
+        case .badStatus(let code, let body):
+            guard let body, !body.isEmpty else { return "Server returned status \(code)." }
+            return "Server returned status \(code): \(body)"
         }
     }
 }
@@ -27,16 +29,19 @@ actor APIClient {
     func scores() async throws -> [ScoreDTO] { try await get("/scores") }
 
     func fixtures(dateFrom: String? = nil, dateTo: String? = nil, matchday: Int? = nil) async throws -> [FixtureDTO] {
-        var query: [String] = []
-        if let dateFrom { query.append("dateFrom=\(dateFrom)") }
-        if let dateTo { query.append("dateTo=\(dateTo)") }
-        if let matchday { query.append("matchday=\(matchday)") }
-        let path = "/fixtures" + (query.isEmpty ? "" : "?" + query.joined(separator: "&"))
-        return try await get(path)
+        var query: [URLQueryItem] = []
+        if let dateFrom { query.append(URLQueryItem(name: "dateFrom", value: dateFrom)) }
+        if let dateTo { query.append(URLQueryItem(name: "dateTo", value: dateTo)) }
+        if let matchday { query.append(URLQueryItem(name: "matchday", value: String(matchday))) }
+        return try await get("/fixtures", query: query)
     }
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        guard let url = URL(string: base.absoluteString + path) else { throw APIError.badURL }
+    private func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
+        guard var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+            throw APIError.badURL
+        }
+        if !query.isEmpty { components.queryItems = query }
+        guard let url = components.url else { throw APIError.badURL }
         var request = URLRequest(url: url)
         // App Attest: prove this is the genuine app so the Worker serves the
         // licensed feed. Best-effort — no headers on Simulator / pre-enrolment,
@@ -45,8 +50,12 @@ actor APIClient {
             request.setValue(value, forHTTPHeaderField: field)
         }
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw APIError.badStatus(-1) }
-        guard (200..<300).contains(http.statusCode) else { throw APIError.badStatus(http.statusCode) }
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.badStatus(-1, body: String(data: data, encoding: .utf8))
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.badStatus(http.statusCode, body: String(data: data, encoding: .utf8))
+        }
         return try decoder.decode(T.self, from: data)
     }
 }
