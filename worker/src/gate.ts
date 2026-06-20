@@ -19,6 +19,8 @@
 // the window is served from the warmed store. Result: ~1 upstream call per TTL
 // window per resource regardless of concurrent users.
 
+import { getSeasonPhase } from "./seasonPhase";
+
 // Minimal structural type — we only need waitUntil, so we don't couple to the
 // exact ExecutionContext shape (which differs between Hono and the workerd
 // runtime types). Both Hono's c.executionCtx and the global ctx satisfy this.
@@ -73,6 +75,12 @@ function parseInt0(v: string | null): number {
  *
  * `refresh` must fetch upstream and write the data store(s); it must NOT touch
  * this gate's counters — that's handled here once it resolves.
+ *
+ * Outside the "live" season phase (closed/rollover — see seasonPhase.ts) this
+ * is a pure no-op: no upstream call, ever, regardless of TTL. The caller then
+ * just serves whatever's already in its data store, unchanged. This is the
+ * single choke point for that — fixtures/scores/standings routes all call
+ * this and need no phase-awareness of their own.
  */
 export async function withFreshness(
   kv: KVNamespace,
@@ -81,6 +89,8 @@ export async function withFreshness(
   refresh: () => Promise<unknown>,
   ctx: BackgroundCtx,
 ): Promise<void> {
+  if ((await getSeasonPhase(kv)) !== "live") return;
+
   const [callStr, refreshStr, tsStr] = await Promise.all([
     kv.get(keys.call),
     kv.get(keys.refresh),

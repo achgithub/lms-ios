@@ -12,12 +12,18 @@ import type {
 } from "./types";
 
 export interface Provider {
-  fetchTeams(): Promise<Team[]>;
+  // `season` (the year a season starts, e.g. 2026 for "2026/27") pins the
+  // upstream call to a specific season instead of football-data.org's default
+  // "current season" pointer for the competition — which only flips once that
+  // pointer is updated upstream, not necessarily when fixtures for the next
+  // season are published. Omitted on the normal live path (today's behaviour,
+  // unpinned); only used by the admin one-off sync during a season rollover.
+  fetchTeams(season?: number): Promise<Team[]>;
   // Scores and fixtures share one upstream source (/matches), so one fetch
   // projects into both shapes — see fetchMatchData. This keeps a scores refresh
   // and a fixtures refresh from each making their own redundant /matches call.
-  fetchMatchData(): Promise<MatchData>;
-  fetchStandings(): Promise<Standing[]>;
+  fetchMatchData(season?: number): Promise<MatchData>;
+  fetchStandings(season?: number): Promise<Standing[]>;
 }
 
 // One /matches response projected into the two shapes the app consumes:
@@ -74,8 +80,9 @@ export class FootballDataProvider implements Provider {
     private readonly leagueId: string,
   ) {}
 
-  private async get<T>(path: string): Promise<T> {
-    const res = await fetch(`${BASE}${path}`, {
+  private async get<T>(path: string, season?: number): Promise<T> {
+    const url = season ? `${BASE}${path}?season=${season}` : `${BASE}${path}`;
+    const res = await fetch(url, {
       headers: { "X-Auth-Token": this.token },
     });
     if (!res.ok) {
@@ -85,9 +92,10 @@ export class FootballDataProvider implements Provider {
     return (await res.json()) as T;
   }
 
-  async fetchTeams(): Promise<Team[]> {
+  async fetchTeams(season?: number): Promise<Team[]> {
     const data = await this.get<{ teams: FDTeam[] }>(
       `/competitions/${this.competitionCode}/teams`,
+      season,
     );
     return data.teams.map((t) => ({
       id: String(t.id),
@@ -103,10 +111,11 @@ export class FootballDataProvider implements Provider {
   // Callers that only need one shape still pay a single upstream call, and the
   // shared-cache warming (scores refresh co-warms fixtures and vice versa) keys
   // off this single source.
-  async fetchMatchData(): Promise<MatchData> {
+  async fetchMatchData(season?: number): Promise<MatchData> {
     const now = new Date().toISOString();
     const data = await this.get<{ matches: FDMatch[] }>(
       `/competitions/${this.competitionCode}/matches`,
+      season,
     );
     const fixtures: Fixture[] = data.matches.map((m) => ({
       id: m.id,
@@ -133,12 +142,13 @@ export class FootballDataProvider implements Provider {
     return { scores, fixtures };
   }
 
-  async fetchStandings(): Promise<Standing[]> {
+  async fetchStandings(season?: number): Promise<Standing[]> {
     const now = new Date().toISOString();
     const data = await this.get<{ standings: { type: string; table: FDTableRow[] }[] }>(
       `/competitions/${this.competitionCode}/standings`,
+      season,
     );
-    const total = data.standings.find((s) => s.type === "TOTAL") ?? data.standings[0];
+    const total = (data.standings ?? []).find((s) => s.type === "TOTAL") ?? data.standings?.[0];
     const table = total?.table ?? [];
     return table.map((r) => ({
       teamId: r.team.id,

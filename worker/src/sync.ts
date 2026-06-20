@@ -9,9 +9,10 @@ import { recordSync, upsertTeams } from "./db";
 import type { Provider } from "./football";
 import { FIXTURES_KEYS, resetGate, SCORES_KEYS, STANDINGS_KEYS } from "./gate";
 import { refreshMatchData, refreshStandings } from "./refresh";
+import { getSeasonPhase } from "./seasonPhase";
 
-export async function syncTeams(db: D1Database, provider: Provider): Promise<number> {
-  const teams = await provider.fetchTeams();
+export async function syncTeams(db: D1Database, provider: Provider, season?: number): Promise<number> {
+  const teams = await provider.fetchTeams(season);
   await upsertTeams(db, teams);
   await recordSync(db, "teams", teams.length);
   return teams.length;
@@ -28,6 +29,16 @@ export async function runMaintenance(
   kv: KVNamespace,
   provider: Provider,
 ): Promise<void> {
+  // Outside "live" (closed/rollover — see seasonPhase.ts), there is nothing to
+  // learn from the upstream and no point spending the call: a manager has
+  // either deliberately frozen the close-season cache or is mid-rollover with
+  // a one-off admin sync already covering it. Skip entirely; don't even reset
+  // the gates (nothing was refreshed for them to be settled against).
+  if ((await getSeasonPhase(kv)) !== "live") {
+    console.log(JSON.stringify({ msg: "cron skipped — season phase not live" }));
+    return;
+  }
+
   const teams = await syncTeams(db, provider);
   const { scores, fixtures } = await refreshMatchData(db, kv, provider);
   const standings = await refreshStandings(db, provider);

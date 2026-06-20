@@ -3,20 +3,36 @@
 interface Env {
   PL_DB: D1Database;  ELC_DB: D1Database;  PD_DB: D1Database;
   PL_KV: KVNamespace; ELC_KV: KVNamespace; PD_KV: KVNamespace;
+  // Same value as each league Worker's own ADMIN_TOKEN secret — needed to call
+  // its public /admin/sync + /admin/probe-standings (season rollover actions).
+  // Not needed for the phase buttons, which write the KV binding directly.
+  PL_ADMIN_TOKEN?: string; ELC_ADMIN_TOKEN?: string; PD_ADMIN_TOKEN?: string;
 }
 
 type SyncRow    = { dataset: string; synced_at: string; row_count: number };
 type GateState  = { call: number; refresh: number; ts: string | null };
 type StatusRow  = { status: string; cnt: number };
 type NextFixRow = { kickoff: string; matchday: number | null };
+type SeasonPhase = "live" | "closed" | "rollover";
 
 const GATES = ["scores", "fixtures", "standings"] as const;
 type GateName = typeof GATES[number];
 
+const PHASE_KEY = "season:phase";
+
 const LEAGUES = [
-  { key: "pl",  name: "Premier League", db: "PL_DB"  as const, kv: "PL_KV"  as const },
-  { key: "elc", name: "Championship",   db: "ELC_DB" as const, kv: "ELC_KV" as const },
-  { key: "pd",  name: "La Liga",        db: "PD_DB"  as const, kv: "PD_KV"  as const },
+  {
+    key: "pl", name: "Premier League", db: "PL_DB" as const, kv: "PL_KV" as const,
+    url: "https://pl.sportsmanager.site", tokenEnv: "PL_ADMIN_TOKEN" as const,
+  },
+  {
+    key: "elc", name: "Championship", db: "ELC_DB" as const, kv: "ELC_KV" as const,
+    url: "https://elc.sportsmanager.site", tokenEnv: "ELC_ADMIN_TOKEN" as const,
+  },
+  {
+    key: "pd", name: "La Liga", db: "PD_DB" as const, kv: "PD_KV" as const,
+    url: "https://pd.sportsmanager.site", tokenEnv: "PD_ADMIN_TOKEN" as const,
+  },
 ];
 
 function parseInt0(v: string | null): number {
@@ -31,6 +47,7 @@ async function fetchLeague(db: D1Database, kv: KVNamespace) {
   // in LEAGUES above and never will be.
   const kvKeys = [
     "scores",
+    PHASE_KEY,
     ...GATES.flatMap((g) => [`${g}:call`, `${g}:refresh`, `${g}:ts`]),
   ];
   const [syncResult, statusResult, nextFixResult, ...kvVals] = await Promise.all([
@@ -40,7 +57,8 @@ async function fetchLeague(db: D1Database, kv: KVNamespace) {
     ...kvKeys.map((k) => kv.get(k)),
   ]);
 
-  const [scoresRaw, ...gateVals] = kvVals;
+  const [scoresRaw, phaseRaw, ...gateVals] = kvVals;
+  const phase: SeasonPhase = phaseRaw === "closed" || phaseRaw === "rollover" ? phaseRaw : "live";
 
   const gates: Record<GateName, GateState> = {} as Record<GateName, GateState>;
   GATES.forEach((g, i) => {
@@ -58,6 +76,7 @@ async function fetchLeague(db: D1Database, kv: KVNamespace) {
     nextFixture: nextFixResult ?? null,
     scoresCacheBytes: scoresRaw ? scoresRaw.length : null,
     gates,
+    phase,
   };
 }
 
@@ -98,6 +117,20 @@ function shellHtml(): Response {
         <button onclick="load('${l.key}')">Load</button>
       </div>
       <div id="d-${l.key}" class="league-data">—</div>
+      <h3>Season control</h3>
+      <div class="phase-row">
+        <span>Phase: <span id="phase-${l.key}" class="phase-badge">—</span></span>
+      </div>
+      <div class="season-actions">
+        <button onclick="setPhase('${l.key}','closed')">Mark Closed</button>
+        <button onclick="setPhase('${l.key}','live')">Go Live</button>
+      </div>
+      <div class="season-actions">
+        <input id="year-${l.key}" type="number" placeholder="e.g. 2026" style="width:5.5em">
+        <button onclick="probeSeason('${l.key}')">Probe season</button>
+        <button onclick="syncSeason('${l.key}')">Sync new season →</button>
+      </div>
+      <div id="season-msg-${l.key}" class="season-msg"></div>
     </section>`).join("");
 
   const html = `<!DOCTYPE html>
@@ -141,6 +174,15 @@ function shellHtml(): Response {
     .season { color: #e0e0e0; margin-top: 0.6rem; font-size: 13px; }
     .next   { color: #888; font-size: 12px; margin-top: 0.2rem; margin-bottom: 0.2rem; }
     .fetched { color: #333; font-size: 11px; margin-top: 0.6rem; }
+    .phase-row { font-size: 12px; color: #888; margin-bottom: 0.5rem; }
+    .phase-badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: bold; }
+    .phase-live     { background: #0d1a0d; color: #4a4; border: 1px solid #1a331a; }
+    .phase-closed   { background: #1a1505; color: #ca6; border: 1px solid #332a0d; }
+    .phase-rollover { background: #0a1420; color: #6af; border: 1px solid #14304d; }
+    .season-actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    input { background: #1a1a1a; color: #e0e0e0; border: 1px solid #333; border-radius: 4px;
+            padding: 0.3rem 0.5rem; font-family: inherit; font-size: 12px; }
+    .season-msg { font-size: 11px; color: #888; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -166,6 +208,7 @@ function shellHtml(): Response {
       btn.disabled = true; btn.textContent = '…';
       try {
         const d = await fetch('/data/' + key).then(r => r.json());
+        setPhaseBadge(key, d.phase);
 
         // D1 sync table
         const datasets = ['fixtures','standings','teams'];
@@ -209,7 +252,7 @@ function shellHtml(): Response {
           + seasonLine
           + '<h3>KV — gates</h3>'
           + '<table><thead><tr><th>Resource</th><th>call/refresh</th><th>Status</th><th>Last reset</th></tr></thead><tbody>'+gateRows+'</tbody></table>'
-          + '<div style="margin-top:0.5rem">'+cacheNote+' <span class="badge badge-live">Live mode</span></div>'
+          + '<div style="margin-top:0.5rem">'+cacheNote+'</div>'
           + '<div class="fetched">Fetched '+esc(d.fetchedAt)+'</div>';
       } catch(e) {
         out.textContent = 'Error: ' + e.message;
@@ -217,15 +260,92 @@ function shellHtml(): Response {
         btn.disabled = false; btn.textContent = 'Refresh';
       }
     }
+
+    function setPhaseBadge(key, phase) {
+      const el = document.getElementById('phase-' + key);
+      el.textContent = phase || 'live';
+      el.className = 'phase-badge phase-' + (phase || 'live');
+    }
+
+    async function setPhase(key, value) {
+      const msg = document.getElementById('season-msg-' + key);
+      msg.textContent = 'Setting phase to ' + value + '…';
+      try {
+        const r = await fetch('/action/' + key + '/phase?value=' + value, { method: 'POST' }).then(r => r.json());
+        if (!r.ok) { msg.textContent = 'Error: ' + (r.error || 'unknown'); return; }
+        setPhaseBadge(key, r.phase);
+        msg.textContent = 'Phase set to ' + r.phase + '.';
+      } catch (e) { msg.textContent = 'Error: ' + e.message; }
+    }
+
+    async function probeSeason(key) {
+      const msg = document.getElementById('season-msg-' + key);
+      const year = document.getElementById('year-' + key).value;
+      if (!year) { msg.textContent = 'Enter a season year first.'; return; }
+      msg.textContent = 'Probing season ' + year + ' upstream (read-only)…';
+      try {
+        const r = await fetch('/action/' + key + '/probe?season=' + year, { method: 'POST' }).then(r => r.json());
+        msg.textContent = r.ok
+          ? 'Season ' + year + ': ' + r.rowCount + ' rows. Sample team ids: ' + (r.sampleTeamIds || []).join(', ')
+          : 'Probe failed: ' + (r.error || 'unknown');
+      } catch (e) { msg.textContent = 'Error: ' + e.message; }
+    }
+
+    async function syncSeason(key) {
+      const msg = document.getElementById('season-msg-' + key);
+      const year = document.getElementById('year-' + key).value;
+      if (!year) { msg.textContent = 'Enter a season year first.'; return; }
+      if (!confirm('Sync season ' + year + ' for ' + key.toUpperCase() + '?\\n\\nThis replaces teams/fixtures/standings in D1 and sets phase to "rollover" (stops automatic polling until you go Live).')) return;
+      msg.textContent = 'Syncing season ' + year + '…';
+      try {
+        const r = await fetch('/action/' + key + '/sync?season=' + year, { method: 'POST' }).then(r => r.json());
+        if (!r.ok) { msg.textContent = 'Sync failed: ' + JSON.stringify(r); return; }
+        setPhaseBadge(key, 'rollover');
+        msg.textContent = 'Synced: ' + JSON.stringify(r.synced) + '. Phase set to rollover.';
+      } catch (e) { msg.textContent = 'Error: ' + e.message; }
+    }
   </script>
 </body>
 </html>`;
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
+// Season-control actions — see docs/season-phase.md for the runbook these map to.
+// All three POST to the league's own KV directly for the phase flag (already
+// bound here, same as the read-only gate display above); the sync/probe
+// actions instead proxy to the league Worker's public /admin endpoints, since
+// only it holds the FOOTBALL_DATA_TOKEN needed to call football-data.org.
+async function setPhase(kv: KVNamespace, value: string): Promise<Response> {
+  if (value !== "live" && value !== "closed" && value !== "rollover") {
+    return Response.json({ ok: false, error: "value must be live|closed|rollover" }, { status: 400 });
+  }
+  await kv.put(PHASE_KEY, value);
+  return Response.json({ ok: true, phase: value });
+}
+
+async function proxySync(url: string, token: string | undefined, season: string): Promise<Response> {
+  if (!token) return Response.json({ ok: false, error: "admin token not configured for this league" }, { status: 500 });
+  const upstream = await fetch(`${url}/admin/sync?what=all&season=${encodeURIComponent(season)}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await upstream.json();
+  if (!upstream.ok) return Response.json({ ok: false, ...(body as object) }, { status: upstream.status });
+  return Response.json(body);
+}
+
+async function proxyProbe(url: string, token: string | undefined, season: string): Promise<Response> {
+  if (!token) return Response.json({ ok: false, error: "admin token not configured for this league" }, { status: 500 });
+  const upstream = await fetch(`${url}/admin/probe-standings?season=${encodeURIComponent(season)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await upstream.json() as { ok: boolean; rowCount?: number; rows?: { teamId: number }[] };
+  return Response.json({ ok: body.ok, rowCount: body.rowCount, sampleTeamIds: body.rows?.slice(0, 5).map((r) => r.teamId) });
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    const { pathname } = new URL(req.url);
+    const { pathname, searchParams } = new URL(req.url);
 
     if (pathname === "/manifest.json") return manifestJson();
     if (pathname === "/sw.js")         return serviceWorkerJs();
@@ -243,6 +363,26 @@ export default {
         }),
         ...data,
       });
+    }
+
+    const actionMatch = pathname.match(/^\/action\/([a-z]+)\/(phase|sync|probe)$/);
+    if (actionMatch && req.method === "POST") {
+      const [, key, action] = actionMatch;
+      const league = LEAGUES.find((l) => l.key === key);
+      if (!league) return new Response("not found", { status: 404 });
+      if (action === "phase") return setPhase(env[league.kv], searchParams.get("value") ?? "");
+      const season = searchParams.get("season") ?? "";
+      if (!season) return Response.json({ ok: false, error: "season is required" }, { status: 400 });
+      const token = env[league.tokenEnv];
+      if (action === "sync") {
+        const res = await proxySync(league.url, token, season);
+        // A successful season sync means the new roster/fixtures/zeroed table
+        // are now in D1 — immediately stop automatic polling so the close-
+        // season cache-only window holds until the manager explicitly goes live.
+        if (res.ok) await env[league.kv].put(PHASE_KEY, "rollover");
+        return res;
+      }
+      return proxyProbe(league.url, token, season);
     }
 
     return shellHtml();

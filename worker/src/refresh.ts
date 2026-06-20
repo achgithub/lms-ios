@@ -23,8 +23,9 @@ export async function refreshMatchData(
   db: D1Database,
   kv: KVNamespace,
   provider: Provider,
+  season?: number,
 ): Promise<MatchCounts> {
-  const { scores, fixtures } = await provider.fetchMatchData();
+  const { scores, fixtures } = await provider.fetchMatchData(season);
   await upsertFixtures(db, fixtures);
   await recordSync(db, "fixtures", fixtures.length);
   await kv.put(SCORES_DATA_KEY, JSON.stringify(scores));
@@ -36,8 +37,8 @@ export async function refreshMatchData(
  * Fetch the league table → replace it in D1. Standings have their own upstream
  * (/standings) and their own gate; nothing co-warms them.
  */
-export async function refreshStandings(db: D1Database, provider: Provider): Promise<number> {
-  const standings = await provider.fetchStandings();
+export async function refreshStandings(db: D1Database, provider: Provider, season?: number): Promise<number> {
+  const standings = await provider.fetchStandings(season);
   await replaceStandings(db, standings);
   await recordSync(db, "standings", standings.length);
   return standings.length;
