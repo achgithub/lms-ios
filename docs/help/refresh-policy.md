@@ -1,5 +1,9 @@
 # A quick note on refreshing
 
+> The legally-binding version of this lives in the Terms of Service
+> ("Data refresh policy" section, web/site/lms/terms.html) — this doc is the
+> friendly explainer version, not currently linked anywhere in the app.
+
 **Why the refresh button takes a breather**
 
 You might notice the refresh button on the Scores screen greys out for a minute after you use it, with a little countdown showing when it's ready again. That's deliberate — here's the thinking.

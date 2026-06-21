@@ -40,6 +40,23 @@ See also the "Data availability between seasons" note in our
 <a href="/lms/privacy">Privacy Policy</a> for the separate, longer window
 that occurs between football seasons.</p>
 
+<h2>Data refresh policy</h2>
+<p>Live scores and the league table aren't fetched fresh on every request.
+Scores refresh roughly once a minute and the table roughly once every
+half hour — after using the refresh button, it greys out with a countdown
+until a newer fetch would actually return anything different. This isn't
+data being withheld: within that window there genuinely isn't anything
+newer to show, since our own server hasn't re-fetched from the upstream
+provider yet either. The same applies to fixtures and team data, refreshed
+on a longer cycle since they change far less often.</p>
+<p>These intervals are tuned for how a last-man-standing pool is actually
+played — what matters is who won each round once it finishes, not
+second-by-second scores — and to keep the shared server affordable to run
+for every league and every player. We may adjust these intervals at any
+time, in either direction, without prior notice, as real-world usage and
+running costs evolve; we won't reduce them in a way that stops the app
+functioning for its core purpose of tracking picks and eliminations.</p>
+
 <h2>Subscriptions and purchases</h2>
 <p>Paid tiers (No Ads / 3 Leagues / Unlimited) are auto-renewing
 subscriptions sold and billed through Apple's In-App Purchase system, and
