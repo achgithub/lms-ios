@@ -58,7 +58,7 @@ struct SplashView: View {
                         .foregroundStyle(Brand.masterBlue)
                         .opacity(wordmarkOpacity)
 
-                    Text("LAST MAN STANDING")
+                    Text("LAST STAND MANAGER")
                         .font(.custom("MontserratThin-ExtraBold", size: 22))
                         .kerning(1)
                         .foregroundStyle(Brand.accent)
