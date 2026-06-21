@@ -53,7 +53,7 @@ struct PaywallView: View {
                     // the Terms of Use (Apple's standard EULA) and Privacy Policy must be
                     // present on or reachable from the purchase screen.
                     Link("Terms of Use (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                    Link("Privacy Policy", destination: URL(string: "https://sportsmanager-site.pages.dev/lms/privacy")!)
+                    Link("Privacy Policy", destination: URL(string: "https://sportsmanager-site.pages.dev/lsm/privacy")!)
                 }
             }
             .navigationTitle("Go Premium")

@@ -1,7 +1,7 @@
 # A quick note on refreshing
 
 > The legally-binding version of this lives in the Terms of Service
-> ("Data refresh policy" section, web/site/lms/terms.html) — this doc is the
+> ("Data refresh policy" section, web/site/lsm/terms.html) — this doc is the
 > friendly explainer version, not currently linked anywhere in the app.
 
 **Why the refresh button takes a breather**
