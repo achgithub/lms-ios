@@ -2,12 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Google Mobile Ads (AdMob) App ID. This is Google's official TEST App ID;
-	     swap for the real AdMob App ID before release. The SDK requires this key
-	     at launch or it crashes. Generated Info.plist keys (launch screen, scene
+	<!-- Google Mobile Ads (AdMob) App ID. The SDK requires this key at launch
+	     or it crashes. Generated Info.plist keys (launch screen, scene
 	     manifest, orientations) are merged in by GENERATE_INFOPLIST_FILE=YES. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-3510617456822042~1632957503</string>
 	<!-- App Tracking Transparency: shown by AdConsent before ads start. Without
 	     this key the ATT prompt cannot appear and ads stay non-personalized. -->
 	<key>NSUserTrackingUsageDescription</key>

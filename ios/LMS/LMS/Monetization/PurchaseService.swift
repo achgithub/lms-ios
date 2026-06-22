@@ -45,8 +45,7 @@ struct PurchaseOption: Identifiable, Hashable {
 final class PurchaseService {
     static let shared = PurchaseService()
 
-    // TODO: real key from RevenueCat → Project → API Keys → public app-specific.
-    private static let apiKey = "appl_REPLACE_ME"
+    private static let apiKey = "appl_YzVhdARQYOPkfOeQpGuvTkvNTeA"
 
     private(set) var isConfigured = false
 

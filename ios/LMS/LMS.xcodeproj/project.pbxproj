@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AD0000000000000000000003 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000002 /* GoogleMobileAds */; };
+		AD0000000000000000000004 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000006 /* RevenueCat */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AD0000000000000000000003 /* GoogleMobileAds in Frameworks */,
+				AD0000000000000000000004 /* RevenueCat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -142,6 +144,7 @@
 			name = LMS;
 			packageProductDependencies = (
 				AD0000000000000000000002 /* GoogleMobileAds */,
+				AD0000000000000000000006 /* RevenueCat */,
 			);
 			productName = LMS;
 			productReference = 92346B562FDED71700998C1D /* LMS.app */;
@@ -209,6 +212,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AD0000000000000000000001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				AD0000000000000000000005 /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 92346B572FDED71700998C1D /* Products */;
@@ -635,6 +639,14 @@
 				minimumVersion = 12.0.0;
 			};
 		};
+		AD0000000000000000000005 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -642,6 +654,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AD0000000000000000000001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
+		};
+		AD0000000000000000000006 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD0000000000000000000005 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
