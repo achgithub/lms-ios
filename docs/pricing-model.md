@@ -6,21 +6,25 @@ Leagues/Unlimited ladder below, which itself superseded an earlier
 
 ## The ladder
 
-| Tier | Leagues | UK (£/mo) | Eurozone (€/mo) |
-|---|---|---|---|
-| Free | 1 (home league, PL by default) | £0 (ads) | €0 |
-| No Ads | 1 league | £2.49 | €2.99 |
-| 3 Leagues | 3 leagues | £3.49 | €3.99 |
-| 5 Leagues | 5 leagues | £4.49 | €4.99 |
-| 7 Leagues | 7 leagues | £5.49 | €5.99 |
+| Tier | Leagues | UK (£/mo) | Eurozone (€/mo) | USD ($/mo) |
+|---|---|---|---|---|
+| Free | 1 (home league, PL by default) | £0 (ads) | €0 | $0 |
+| No Ads | 1 league | £2.49 | €2.99 | $3.49 |
+| 3 Leagues | 3 leagues | £3.49 | €3.99 | $4.49 |
+| 5 Leagues | 5 leagues | £4.49 | €4.99 | $5.49 |
+| 7 Leagues | 7 leagues | £5.49 | €5.99 | $6.49 |
 
 - Each step is the previous tier's UK price **+50p per added league**
   (£2.49 base, +50p × leagues beyond 1); Eurozone is the UK face-value
-  **+€0.50**, not an FX conversion — set per-region in App Store Connect,
-  not computed.
+  **+€0.50**, USD is the UK face-value **+$1.00** — both face-value
+  uplifts, not FX conversions — set per-region in App Store Connect, not
+  computed.
+- **Decided (2026-06-22):** rest-of-world territories (everything outside
+  UK/Eurozone/US) auto-convert from the **USD** price via Apple's standard
+  price-tier FX equalization — only UK/Eurozone/USD are manually overridden
+  in App Store Connect.
 - **No annual option on any tier for now** — monthly only at launch; revisit
   once there's real usage/conversion data.
-- USD pricing not yet decided — separate task before US launch.
 - **No mid-season price hikes on existing subscribers.** Apple grandfathers
   existing subscribers when you raise a price anyway — a hike only ever
   affects *new* subscribers — so this is the real launch price, not a
