@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 /// Settings (spec §7.2). The League section is a checklist of the leagues the
 /// user has enabled (capped by their subscription). Disabling a league removes
@@ -21,6 +22,9 @@ struct SettingsView: View {
     // Upgrade / restore.
     @State private var showPaywall = false
     @State private var purchaseAlert: PurchaseAlertItem?
+    #if DEBUG
+    @State private var storeKitDiagnostic: String?
+    #endif
 
     private var allowance: Int { entitlements.leagueAllowance }
 
@@ -79,6 +83,22 @@ struct SettingsView: View {
                     }
                     Text("Flips ad-on / ad-off + league allowance without a purchase. Free/No Ads = 1, then 3 / 5 / 7 leagues by tier.")
                         .font(.caption).foregroundStyle(.secondary)
+                    Button("Check StoreKit Products (bypass RevenueCat)") {
+                        Task {
+                            let ids = Set(PurchaseOption.all.map { $0.packageId })
+                            do {
+                                let products = try await Product.products(for: ids)
+                                let found = Set(products.map { $0.id })
+                                let missing = ids.subtracting(found)
+                                storeKitDiagnostic = "Found \(products.count)/\(ids.count): \(found.sorted().joined(separator: ", "))\nMissing: \(missing.isEmpty ? "none" : missing.sorted().joined(separator: ", "))"
+                            } catch {
+                                storeKitDiagnostic = "Error: \(error)"
+                            }
+                        }
+                    }
+                    if let diagnostic = storeKitDiagnostic {
+                        Text(diagnostic).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 #endif
 
