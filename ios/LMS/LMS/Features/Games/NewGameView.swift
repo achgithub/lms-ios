@@ -29,11 +29,20 @@ struct NewGameView: View {
                     TextField("Game name", text: $name)
                 }
 
-                // Only shown when there's an actual choice — a single-league setup
-                // uses that league silently (season comes from config, not shown).
-                if enabled.leagues.count > 1 {
-                    Section {
-                        ForEach(enabled.leagues) { league in
+                // Always shown so the manager can always see which league(s) a game
+                // will use. A single-league setup shows that one league greyed out
+                // (nothing to choose); 2+ leagues is an interactive, forced choice —
+                // none pre-ticked, so a manager never silently blends leagues they
+                // didn't mean to.
+                Section {
+                    ForEach(enabled.leagues) { league in
+                        if enabled.leagues.count == 1 {
+                            HStack {
+                                Text(league.name).foregroundStyle(.secondary)
+                                Spacer()
+                                Image(systemName: "checkmark").foregroundStyle(.secondary)
+                            }
+                        } else {
                             Button {
                                 toggleLeague(league.id)
                             } label: {
@@ -46,11 +55,13 @@ struct NewGameView: View {
                                 }
                             }
                         }
-                    } header: {
-                        Text("Leagues")
-                    } footer: {
-                        Text("Pick one league, or blend several — players can then pick teams from any of them.")
                     }
+                } header: {
+                    Text("Leagues")
+                } footer: {
+                    Text(enabled.leagues.count == 1
+                         ? "Your only enabled league. Enable more in Settings to blend leagues in a game."
+                         : "Pick one league, or blend several — players can then pick teams from any of them.")
                 }
 
                 if !managerTrimmed.isEmpty {
@@ -114,13 +125,13 @@ struct NewGameView: View {
                         .disabled(!canCreate)
                 }
             }
-            // Default to all enabled leagues when there's one; else preselect the
-            // first so a single-league game is the zero-tap default.
+            // Single-league setup: zero-tap default (nothing to choose). 2+
+            // leagues: no default tick at all — the manager must explicitly
+            // choose, so a game is never created with a league they didn't mean
+            // to include (see the Leagues section above).
             .onAppear {
-                if selectedLeagueIds.isEmpty {
-                    selectedLeagueIds = enabled.leagues.count == 1
-                        ? Set(enabled.leagues.map(\.id))
-                        : Set(enabled.leagues.prefix(1).map(\.id))
+                if selectedLeagueIds.isEmpty, enabled.leagues.count == 1 {
+                    selectedLeagueIds = Set(enabled.leagues.map(\.id))
                 }
             }
         }
