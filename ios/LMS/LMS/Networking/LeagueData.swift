@@ -20,8 +20,6 @@ struct LeagueData {
     let standingsByTeam: [Int: StandingDTO]
     /// teamId → its league's team count (so weak-pick is correct across a blend).
     let teamsCountByTeam: [Int: Int]
-    /// teamId → leagueId, to resolve which league a team/fixture belongs to.
-    let leagueIdByTeam: [Int: String]
     /// Age marker for the table: the **oldest** standings snapshot across the
     /// game's leagues (nil only if a league had no table at all). Drives the
     /// auto-assign staleness prompt.
@@ -35,7 +33,6 @@ struct LeagueData {
         var teamsById: [Int: TeamDTO] = [:]
         var standingsByTeam: [Int: StandingDTO] = [:]
         var teamsCountByTeam: [Int: Int] = [:]
-        var leagueIdByTeam: [Int: String] = [:]
         var oldestStandings: Date?
 
         // 1–3 leagues typically, so a sequential merge is fine.
@@ -44,11 +41,16 @@ struct LeagueData {
             let f = try await cachedFixtures(for: league)
             let (rows, date) = try await cachedStandings(for: league, teams: teams)
 
-            fixtures.append(contentsOf: f)
+            // Stamped here, not inferred later from team-roster membership — see
+            // FixtureDTO.leagueId's doc comment for why that matters.
+            fixtures.append(contentsOf: f.map { fixture in
+                var tagged = fixture
+                tagged.leagueId = league.id
+                return tagged
+            })
             for team in teams {
                 teamsById[team.externalId] = team
                 teamsCountByTeam[team.externalId] = league.teamsCount
-                leagueIdByTeam[team.externalId] = league.id
             }
             for standing in rows { standingsByTeam[standing.teamId] = standing }
             if let date { oldestStandings = min(oldestStandings ?? date, date) }
@@ -59,7 +61,6 @@ struct LeagueData {
             teamsById: teamsById,
             standingsByTeam: standingsByTeam,
             teamsCountByTeam: teamsCountByTeam,
-            leagueIdByTeam: leagueIdByTeam,
             standingsDate: oldestStandings
         )
     }

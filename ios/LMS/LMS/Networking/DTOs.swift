@@ -28,6 +28,14 @@ struct FixtureDTO: Codable, Identifiable {
     let awayScore: Int?
     let winner: String?
     let updatedAt: String
+    /// Which league this fixture was fetched from — absent on the wire (each
+    /// Worker serves one league per request), so `LeagueData.load` stamps it
+    /// right after fetching, before anything else sees it. Deliberately NOT
+    /// inferred from team-roster membership: a promoted/relegated club can
+    /// briefly appear in two leagues' team lists at once, which would
+    /// mislabel a fixture based on roster-sync timing rather than which
+    /// league it actually belongs to.
+    var leagueId: String?
 }
 
 struct StandingDTO: Codable, Identifiable {

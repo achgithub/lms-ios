@@ -20,7 +20,7 @@ struct OpenRoundView: View {
 
     // Filters — date is the primary driver (matchday numbers don't line up across
     // leagues), so the date window is on by default.
-    @State private var leagueFilter: String?         // nil = all the game's leagues
+    @State private var selectedLeagueIds: Set<String> = []   // populated with all the game's leagues on load
     @State private var unplayedOnly = true           // default: upcoming fixtures
     @State private var dateFilterOn = true
     @State private var dateFrom = Date().addingTimeInterval(-1 * 24 * 3600)
@@ -35,24 +35,10 @@ struct OpenRoundView: View {
 
     private var allFixtures: [FixtureDTO] { data?.fixtures ?? [] }
 
-    /// We only ever show the schedule four weeks ahead — a hard forward horizon.
-    /// Applied regardless of the date filter (and the date picker can't reach past
-    /// it), so a round is always opened on fixtures inside the window.
-    private static let horizon: TimeInterval = 28 * 24 * 3600
-    private var horizonEnd: Date { Date().addingTimeInterval(Self.horizon) }
-    private func withinHorizon(_ f: FixtureDTO) -> Bool {
-        guard let k = FixtureFormat.kickoffDate(f.kickoff) else { return true }
-        return k <= horizonEnd
-    }
-
-    /// The league a fixture belongs to (via its home team's league).
-    private func leagueId(of f: FixtureDTO) -> String? { data?.leagueIdByTeam[f.homeTeamId] }
-
     /// Fixtures after every active filter, sorted by kickoff.
     private var visibleFixtures: [FixtureDTO] {
         allFixtures.filter { f in
-            withinHorizon(f)
-                && (leagueFilter == nil || leagueId(of: f) == leagueFilter)
+            (f.leagueId.map { selectedLeagueIds.contains($0) } ?? false)
                 && (!unplayedOnly || Self.isUnplayed(f))
                 && (!dateFilterOn || dateInRange(f))
         }
@@ -100,16 +86,20 @@ struct OpenRoundView: View {
                 // Only show the league control when there's an actual choice — a
                 // single-league game uses that league silently (matches New Game).
                 if isBlended {
-                    Picker("League", selection: $leagueFilter) {
-                        Text("All leagues").tag(String?.none)
-                        ForEach(gameLeagues) { Text($0.name).tag(String?.some($0.id)) }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(gameLeagues) { leaguePill($0) }
+                        }
+                        .padding(.vertical, 2)
                     }
+                    .listRowInsets(EdgeInsets())
+                    .padding(.horizontal)
                 }
                 Toggle("Unplayed only", isOn: $unplayedOnly)
                 Toggle("Filter by date", isOn: $dateFilterOn.animation())
                 if dateFilterOn {
-                    DatePicker("From", selection: $dateFrom, in: ...horizonEnd, displayedComponents: .date)
-                    DatePicker("To", selection: $dateTo, in: dateFrom...horizonEnd, displayedComponents: .date)
+                    DatePicker("From", selection: $dateFrom, displayedComponents: .date)
+                    DatePicker("To", selection: $dateTo, in: dateFrom..., displayedComponents: .date)
                 }
             }
 
@@ -125,7 +115,7 @@ struct OpenRoundView: View {
                                 Image(systemName: selectedFixtureIds.contains(fixture.id) ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(selectedFixtureIds.contains(fixture.id) ? .green : .secondary)
                                 FixtureLabel(fixture: fixture, teamsById: data?.teamsById ?? [:])
-                                if isBlended, let lid = leagueId(of: fixture), let l = Leagues.byId(lid) {
+                                if isBlended, let lid = fixture.leagueId, let l = Leagues.byId(lid) {
                                     Text(l.shortName)
                                         .font(.caption2.weight(.bold))
                                         .padding(.horizontal, 5).padding(.vertical, 2)
@@ -157,6 +147,30 @@ struct OpenRoundView: View {
             } footer: {
                 Text("Defaults to 24 hours before the first selected kick-off. A guide for the manager — picks aren't locked automatically.")
             }
+        }
+    }
+
+    // MARK: League pills
+
+    private func leaguePill(_ league: LeagueOption) -> some View {
+        let on = selectedLeagueIds.contains(league.id)
+        return Button {
+            toggleLeague(league.id)
+        } label: {
+            Text(league.name)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(on ? Color.accentColor : Color.gray.opacity(0.2), in: Capsule())
+                .foregroundStyle(on ? .white : .primary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleLeague(_ id: String) {
+        if selectedLeagueIds.contains(id) {
+            if selectedLeagueIds.count > 1 { selectedLeagueIds.remove(id) }   // keep at least one
+        } else {
+            selectedLeagueIds.insert(id)
         }
     }
 
@@ -215,6 +229,9 @@ struct OpenRoundView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+        if selectedLeagueIds.isEmpty {
+            selectedLeagueIds = Set(gameLeagues.map(\.id))
+        }
     }
 
     private func create() {
