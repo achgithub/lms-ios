@@ -26,6 +26,11 @@ struct GameDetailView: View {
     @State private var pendingRemovePlayer: Player?
     /// Set while awaiting confirmation to reset the open round (wrong fixtures).
     @State private var pendingEditFixtures = false
+    /// CSV export (manual backup) — files staged once the async league-data
+    /// load completes, then handed to the share sheet.
+    @State private var isPreparingExport = false
+    @State private var exportFiles: [URL]?
+    @State private var exportError: String?
 
     private var sortedPlayers: [Player] {
         game.players.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -74,6 +79,32 @@ struct GameDetailView: View {
         }
         .navigationTitle(game.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { Task { await exportGame() } } label: {
+                    if isPreparingExport {
+                        ProgressView()
+                    } else {
+                        Label("Export Game", systemImage: "square.and.arrow.up")
+                    }
+                }
+                .disabled(isPreparingExport)
+            }
+        }
+        .sheet(item: Binding(
+            get: { exportFiles.map(ExportShareItem.init) },
+            set: { if $0 == nil { exportFiles = nil } }
+        )) { item in
+            ActivityShareView(items: item.urls)
+        }
+        .alert("Export Failed", isPresented: Binding(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
+        }
         .sheet(isPresented: $showingAddPlayers) { AddPlayersView(game: game) }
         .sheet(item: $sheet, onDismiss: presentPendingResolve) { which in
             switch which {
@@ -148,6 +179,20 @@ struct GameDetailView: View {
         game.rounds.removeAll { $0.id == round.id }
         context.delete(round)
         autoOpenType = type
+    }
+
+    /// Manual backup: export the game's settings + full pick history as two
+    /// CSV files via the share sheet. Cache-only league data (never an ad-gated
+    /// fetch) — this is a utility export, not a fresh-data product.
+    private func exportGame() async {
+        isPreparingExport = true
+        defer { isPreparingExport = false }
+        do {
+            let data = try await LeagueData.load(for: game.leagues)
+            exportFiles = try GameExportFiles.write(for: game, data: data)
+        } catch {
+            exportError = "Couldn't prepare the export. Please try again."
+        }
     }
 
     /// Remove a player who's dropped out (cascade deletes their picks).
